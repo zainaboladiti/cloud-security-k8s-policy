@@ -1,7 +1,8 @@
 # app.py
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 import sqlite3
-import os
+import random
+import string
 import html
 
 app = Flask(__name__)
@@ -15,11 +16,33 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT NOT NULL,
             password TEXT NOT NULL,
-            balance REAL DEFAULT 1000.0
+            account_number TEXT NOT NULL,
+            balance REAL DEFAULT 1000.0,
+            is_admin BOOLEAN DEFAULT 0
         )
     ''')
+    
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS loans (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            amount REAL,
+            status TEXT DEFAULT 'pending',
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+    
+    # Create default admin account
+    c.execute("SELECT * FROM users WHERE username='admin'")
+    if not c.fetchone():
+        c.execute("INSERT INTO users (username, password, account_number, balance, is_admin) VALUES (?, ?, ?, ?, ?)",
+                 ('admin', 'admin123', 'ADMIN001', 1000000.0, 1))
+    
     conn.commit()
     conn.close()
+
+def generate_account_number():
+    return ''.join(random.choices(string.digits, k=10))
 
 @app.route('/')
 def index():
@@ -28,17 +51,43 @@ def index():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']  # Storing plaintext password (CWE-256)
+        # Mass Assignment Vulnerability - Client can send additional parameters
+        user_data = request.form.to_dict()
+        account_number = generate_account_number()
         
-        # SQL Injection vulnerability (CWE-89)
+        # Vulnerable to parameter pollution and privilege escalation
+        query = "INSERT INTO users (username, password, account_number"
+        values = f"'{user_data.get('username')}', '{user_data.get('password')}', '{account_number}'"
+        
+        # Excessive Data Exposure - Including all parameters in query
+        for key in user_data:
+            if key not in ['username', 'password']:
+                query += f", {key}"
+                values += f", '{user_data.get(key)}'"
+        
+        query += f") VALUES ({values})"
+        
         conn = sqlite3.connect('bank.db')
         c = conn.cursor()
-        c.execute(f"INSERT INTO users (username, password) VALUES ('{username}', '{password}')")
+        c.execute(query)
+        user_id = c.lastrowid
         conn.commit()
+        
+        # Excessive Data Exposure in Response
+        c.execute(f"SELECT * FROM users WHERE id={user_id}")
+        user = c.fetchone()
         conn.close()
         
-        return redirect(url_for('login'))
+        response = {
+            'status': 'success',
+            'user_id': user[0],
+            'username': user[1],
+            'account_number': user[3],
+            'balance': user[4],
+            'is_admin': user[5]  # Exposing sensitive data
+        }
+        return jsonify(response)
+        
     return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -47,7 +96,7 @@ def login():
         username = request.form['username']
         password = request.form['password']
         
-        # SQL Injection vulnerability (CWE-89)
+        # SQL Injection vulnerability
         conn = sqlite3.connect('bank.db')
         c = conn.cursor()
         query = f"SELECT * FROM users WHERE username='{username}' AND password='{password}'"
@@ -58,6 +107,7 @@ def login():
         if user:
             session['user_id'] = user[0]
             session['username'] = user[1]
+            session['is_admin'] = user[5]
             return redirect(url_for('dashboard'))
         
     return render_template('login.html')
@@ -69,37 +119,137 @@ def dashboard():
     
     conn = sqlite3.connect('bank.db')
     c = conn.cursor()
-    c.execute(f"SELECT balance FROM users WHERE id={session['user_id']}")
-    balance = c.fetchone()[0]
+    c.execute(f"SELECT * FROM users WHERE id={session['user_id']}")
+    user = c.fetchone()
+    
+    c.execute(f"SELECT * FROM loans WHERE user_id={session['user_id']}")
+    loans = c.fetchall()
     conn.close()
     
-    return render_template('dashboard.html', username=session['username'], balance=balance)
+    return render_template('dashboard.html', 
+                         username=user[1], 
+                         balance=user[4], 
+                         account_number=user[3],
+                         loans=loans,
+                         is_admin=session.get('is_admin', False))
+
+@app.route('/check_balance/<account_number>')
+def check_balance(account_number):
+    # Broken Object Level Authorization (BOLA) vulnerability
+    # No authentication check, anyone can check any account balance
+    conn = sqlite3.connect('bank.db')
+    c = conn.cursor()
+    c.execute(f"SELECT username, balance FROM users WHERE account_number='{account_number}'")
+    user = c.fetchone()
+    conn.close()
+    
+    if user:
+        return jsonify({'username': user[0], 'balance': user[1]})
+    return jsonify({'error': 'Account not found'}), 404
 
 @app.route('/transfer', methods=['POST'])
 def transfer():
     if 'user_id' not in session:
         return jsonify({'error': 'Not logged in'}), 401
     
-    # Missing CSRF protection
     amount = float(request.form['amount'])
-    to_user = request.form['to_user']
+    to_account = request.form['to_account']
     
     conn = sqlite3.connect('bank.db')
     c = conn.cursor()
     
-    # Race condition vulnerability (CWE-362)
+    # Race condition vulnerability
     c.execute(f"SELECT balance FROM users WHERE id={session['user_id']}")
     balance = c.fetchone()[0]
     
     if balance >= amount:
-        # SQL Injection vulnerability (CWE-89)
         c.execute(f"UPDATE users SET balance = balance - {amount} WHERE id={session['user_id']}")
-        c.execute(f"UPDATE users SET balance = balance + {amount} WHERE username='{to_user}'")
+        c.execute(f"UPDATE users SET balance = balance + {amount} WHERE account_number='{to_account}'")
         conn.commit()
         
     conn.close()
     return redirect(url_for('dashboard'))
 
+@app.route('/request_loan', methods=['POST'])
+def request_loan():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not logged in'}), 401
+    
+    amount = float(request.form['amount'])
+    
+    conn = sqlite3.connect('bank.db')
+    c = conn.cursor()
+    c.execute("INSERT INTO loans (user_id, amount) VALUES (?, ?)", 
+             (session['user_id'], amount))
+    conn.commit()
+    conn.close()
+    
+    return redirect(url_for('dashboard'))
+
+# Hidden admin endpoint (security through obscurity)
+@app.route('/sup3r_s3cr3t_admin', methods=['GET'])
+def admin_panel():
+    if not session.get('is_admin'):
+        return "Access Denied", 403
+        
+    conn = sqlite3.connect('bank.db')
+    c = conn.cursor()
+    c.execute("SELECT * FROM users")
+    users = c.fetchall()
+    c.execute("SELECT * FROM loans WHERE status='pending'")
+    pending_loans = c.fetchall()
+    conn.close()
+    
+    return render_template('admin.html', users=users, pending_loans=pending_loans)
+
+@app.route('/admin/approve_loan/<int:loan_id>', methods=['POST'])
+def approve_loan(loan_id):
+    if not session.get('is_admin'):
+        return jsonify({'error': 'Access Denied'}), 403
+    
+    conn = sqlite3.connect('bank.db')
+    c = conn.cursor()
+    c.execute(f"SELECT * FROM loans WHERE id={loan_id}")
+    loan = c.fetchone()
+    
+    if loan:
+        c.execute(f"UPDATE loans SET status='approved' WHERE id={loan_id}")
+        c.execute(f"UPDATE users SET balance = balance + {loan[2]} WHERE id={loan[1]}")
+        conn.commit()
+    
+    conn.close()
+    return redirect(url_for('admin_panel'))
+
+@app.route('/admin/delete_account/<int:user_id>', methods=['POST'])
+def delete_account(user_id):
+    if not session.get('is_admin'):
+        return jsonify({'error': 'Access Denied'}), 403
+    
+    conn = sqlite3.connect('bank.db')
+    c = conn.cursor()
+    c.execute(f"DELETE FROM users WHERE id={user_id}")
+    conn.commit()
+    conn.close()
+    
+    return redirect(url_for('admin_panel'))
+
+@app.route('/admin/create_admin', methods=['POST'])
+def create_admin():
+    if not session.get('is_admin'):
+        return jsonify({'error': 'Access Denied'}), 403
+    
+    username = request.form['username']
+    password = request.form['password']
+    account_number = generate_account_number()
+    
+    conn = sqlite3.connect('bank.db')
+    c = conn.cursor()
+    c.execute(f"INSERT INTO users (username, password, account_number, is_admin) VALUES ('{username}', '{password}', '{account_number}', 1)")
+    conn.commit()
+    conn.close()
+    
+    return redirect(url_for('admin_panel'))
+
 if __name__ == '__main__':
     init_db()
-    app.run(host='0.0.0.0', port=5000, debug=True)  # Debug mode enabled in production (CWE-489)
+    app.run(host='0.0.0.0', port=5000, debug=True)

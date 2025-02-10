@@ -7,16 +7,47 @@
 <body>
     <div class="container">
         <h1>Welcome, {{ username | safe }}</h1>
-        <p>Your balance: ${{ balance }}</p>
+        <p>Account Number: {{ account_number }}</p>
+        <p>Balance: ${{ balance }}</p>
         
         <div class="transfer-form">
             <h2>Transfer Money</h2>
             <form method="POST" action="{{ url_for('transfer') }}">
-                <input type="text" name="to_user" placeholder="Recipient Username" required>
+                <input type="text" name="to_account" placeholder="Recipient Account Number" required>
                 <input type="number" name="amount" placeholder="Amount" step="0.01" required>
                 <button type="submit">Transfer</button>
             </form>
         </div>
+
+        <div class="loan-form">
+            <h2>Request Loan</h2>
+            <form method="POST" action="{{ url_for('request_loan') }}">
+                <input type="number" name="amount" placeholder="Loan Amount" step="0.01" required>
+                <button type="submit">Request Loan</button>
+            </form>
+        </div>
+
+        {% if loans %}
+        <div class="loans-section">
+            <h2>Your Loans</h2>
+            <table>
+                <tr>
+                    <th>Amount</th>
+                    <th>Status</th>
+                </tr>
+                {% for loan in loans %}
+                <tr>
+                    <td>${{ loan[2] }}</td>
+                    <td>{{ loan[3] }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+        {% endif %}
+
+        {% if is_admin %}
+        <a href="{{ url_for('admin_panel') }}" class="button">Admin Panel</a>
+        {% endif %}
         
         <a href="{{ url_for('login') }}" class="button">Logout</a>
     </div>
