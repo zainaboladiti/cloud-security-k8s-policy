@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard - Vulnerable Bank</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome, {{ username | safe }}</h1>
+        <p>Your balance: ${{ balance }}</p>
+        
+        <div class="transfer-form">
+            <h2>Transfer Money</h2>
+            <form method="POST" action="{{ url_for('transfer') }}">
+                <input type="text" name="to_user" placeholder="Recipient Username" required>
+                <input type="number" name="amount" placeholder="Amount" step="0.01" required>
+                <button type="submit">Transfer</button>
+            </form>
+        </div>
+        
+        <a href="{{ url_for('login') }}" class="button">Logout</a>
+    </div>
+</body>
+</html>
