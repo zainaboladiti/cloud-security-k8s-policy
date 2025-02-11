@@ -1,5 +1,6 @@
 # app.py
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+from datetime import datetime
 import sqlite3
 import random
 import string
@@ -55,38 +56,79 @@ def register():
         user_data = request.form.to_dict()
         account_number = generate_account_number()
         
-        # Vulnerable to parameter pollution and privilege escalation
-        query = "INSERT INTO users (username, password, account_number"
-        values = f"'{user_data.get('username')}', '{user_data.get('password')}', '{account_number}'"
-        
-        # Excessive Data Exposure - Including all parameters in query
-        for key in user_data:
-            if key not in ['username', 'password']:
-                query += f", {key}"
-                values += f", '{user_data.get(key)}'"
-        
-        query += f") VALUES ({values})"
-        
+        # Check if username already exists
         conn = sqlite3.connect('bank.db')
         c = conn.cursor()
-        c.execute(query)
-        user_id = c.lastrowid
-        conn.commit()
+        c.execute(f"SELECT username FROM users WHERE username='{user_data.get('username')}'")
+        existing_user = c.fetchone()
         
-        # Excessive Data Exposure in Response
-        c.execute(f"SELECT * FROM users WHERE id={user_id}")
-        user = c.fetchone()
-        conn.close()
+        if existing_user:
+            conn.close()
+            return jsonify({
+                'status': 'error',
+                'message': 'Username already exists',
+                'username': user_data.get('username'),
+                'tried_at': str(datetime.now())  # Information disclosure
+            }), 400
         
-        response = {
-            'status': 'success',
-            'user_id': user[0],
-            'username': user[1],
-            'account_number': user[3],
-            'balance': user[4],
-            'is_admin': user[5]  # Exposing sensitive data
-        }
-        return jsonify(response)
+        # Build the SQL query with all parameters
+        fields = ['username', 'password', 'account_number']
+        values = [user_data.get('username'), user_data.get('password'), account_number]
+        
+        # Include any additional parameters (Mass Assignment Vulnerability)
+        for key, value in user_data.items():
+            if key not in ['username', 'password']:
+                fields.append(key)
+                values.append(value)
+        
+        # Create the SQL query
+        query = f"INSERT INTO users ({', '.join(fields)}) VALUES ({', '.join(['?'] * len(fields))})"
+        
+        try:
+            c.execute(query, values)
+            user_id = c.lastrowid
+            conn.commit()
+            
+            # Excessive Data Exposure in Response
+            c.execute(f"SELECT * FROM users WHERE id={user_id}")
+            user = c.fetchone()
+            conn.close()
+            
+            # Create response with sensitive data
+            sensitive_data = {
+                'status': 'success',
+                'message': 'Registration successful! Proceed to login',
+                'debug_data': {  # Sensitive data exposed
+                    'user_id': user[0],
+                    'username': user[1],
+                    'password': user[2],  # Exposing password
+                    'account_number': user[3],
+                    'balance': user[4],
+                    'is_admin': user[5],
+                    'registration_time': str(datetime.now()),
+                    'server_info': request.headers.get('User-Agent'),
+                    'raw_form_data': dict(request.form)  # Exposing raw form data
+                }
+            }
+            
+            response = jsonify(sensitive_data)
+            
+            # Add sensitive data in custom headers
+            response.headers['X-Debug-Info'] = str(sensitive_data['debug_data'])
+            response.headers['X-User-Info'] = f"id={user[0]};admin={user[5]};balance={user[4]}"
+            response.headers['X-Registration-Query'] = f"{query} -- values: {values}"
+            
+            return response
+            
+        except Exception as e:
+            conn.close()
+            return jsonify({
+                'status': 'error',
+                'message': 'Registration failed',
+                'error': str(e),
+                'query': query,
+                'values': values
+            }), 500
         
     return render_template('register.html')
 
