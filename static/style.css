@@ -28,3 +28,36 @@ input, button {
     border: 1px solid #ddd;
     border-radius: 5px;
 }
+
+.profile-section {
+    margin: 20px auto;
+    text-align: center;
+    padding: 20px;
+    background-color: #f8f9fa;
+    border-radius: 10px;
+}
+
+.profile-picture {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin: 10px auto;
+    border: 3px solid #007bff;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+.profile-upload {
+    margin: 10px auto;
+    padding: 10px;
+}
+
+.profile-upload input[type="file"] {
+    display: block;
+    margin: 10px auto;
+}
+
+#upload-message {
+    margin: 10px 0;
+    font-weight: bold;
+}

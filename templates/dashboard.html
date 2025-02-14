@@ -3,9 +3,143 @@
 <head>
     <title>Dashboard - Vulnerable Bank</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .profile-section {
+            margin: 20px auto;
+            text-align: center;
+        }
+        .profile-picture {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin: 10px auto;
+            border: 3px solid #007bff;
+        }
+        .profile-upload {
+            margin: 10px auto;
+        }
+    </style>
+
+    <script>
+        // Check for token and redirect if not present
+        document.addEventListener('DOMContentLoaded', function() {
+            const token = localStorage.getItem('jwt_token');
+            if (!token) {
+                window.location.href = '/login';
+                return;
+            }
+
+            // Add token to all forms
+            document.querySelectorAll('form:not(.profile-upload)').forEach(form => {
+                form.addEventListener('submit', function(e) {
+                    const token = localStorage.getItem('jwt_token');
+                    if (!token) {
+                        window.location.href = '/login';
+                        return;
+                    }
+                    
+                    // Add token to form data
+                    const formData = new FormData(this);
+                    formData.append('token', token);
+                });
+            });
+        });
+
+        function logout() {
+            localStorage.removeItem('jwt_token');
+            window.location.href = '/login';
+        }
+
+        function uploadProfilePicture(event) {
+            event.preventDefault();
+            const token = localStorage.getItem('jwt_token');
+            if (!token) {
+                window.location.href = '/login';
+                return;
+            }
+
+            const formData = new FormData(event.target);
+
+            fetch('/upload_profile_picture', {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Vulnerability: No sanitization of file_path
+                    document.getElementById('profile-picture').src = '/' + data.file_path;
+                    document.getElementById('upload-message').textContent = 'Upload successful!';
+                    document.getElementById('upload-message').style.color = 'green';
+
+                    event.target.reset();
+                } else {
+                    document.getElementById('upload-message').textContent = data.message;
+                    document.getElementById('upload-message').style.color = 'red';
+                }
+            })
+            .catch(error => {
+                document.getElementById('upload-message').textContent = 'Upload failed';
+                document.getElementById('upload-message').style.color = 'red';
+            });
+        }
+
+        function fetchTransactions() {
+        const token = localStorage.getItem('jwt_token');
+        const accountNumber = '{{ account_number }}';  // Vulnerability: Exposing account number in JS
+
+        fetch(`/transactions/${accountNumber}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    const transactionHtml = data.transactions.map(t => `
+                        <div class="transaction-item">
+                            <div class="transaction-amount ${t.from_account === accountNumber ? 'sent' : 'received'}">
+                                ${t.from_account === accountNumber ? '-' : '+'}$${t.amount}
+                            </div>
+                            <div class="transaction-details">
+                                ${t.from_account === accountNumber ? 'To: ' + t.to_account : 'From: ' + t.from_account}
+                                <br>
+                                <small>${t.timestamp}</small>
+                                <br>
+                                <small>${t.description}</small>
+                            </div>
+                        </div>
+                    `).join('');
+                    
+                    document.getElementById('transaction-list').innerHTML = transactionHtml || 'No transactions found';
+                }
+            })
+            .catch(error => {
+                document.getElementById('transaction-list').innerHTML = 'Error loading transactions';
+            });
+    }
+
+    // Call fetchTransactions when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        fetchTransactions();
+    });
+    </script>
 </head>
 <body>
     <div class="container">
+        <div class="profile-section">
+            <img id="profile-picture" 
+                 class="profile-picture" 
+                 src="{{ url_for('static', filename='uploads/' + user.profile_picture) if user.profile_picture else url_for('static', filename='default-profile.png') }}" 
+                 alt="Profile Picture">
+            
+            <form onsubmit="uploadProfilePicture(event)" class="profile-upload">
+                <input type="file" name="profile_picture" accept="image/*">
+                <button type="submit">Upload Profile Picture</button>
+            </form>
+            <div id="upload-message"></div>
+        </div>
+
         <h1>Welcome, {{ username | safe }}</h1>
         <p>Account Number: {{ account_number }}</p>
         <p>Balance: ${{ balance }}</p>
@@ -25,6 +159,11 @@
                 <input type="number" name="amount" placeholder="Loan Amount" step="0.01" required>
                 <button type="submit">Request Loan</button>
             </form>
+        </div>
+        
+        <div class="transaction-section">
+            <h2>Transaction History</h2>
+            <div id="transaction-list">Loading transactions...</div>
         </div>
 
         {% if loans %}
@@ -49,7 +188,7 @@
         <a href="{{ url_for('admin_panel') }}" class="button">Admin Panel</a>
         {% endif %}
         
-        <a href="{{ url_for('login') }}" class="button">Logout</a>
+        <button onclick="logout()" class="button">Logout</button>
     </div>
 </body>
 </html>
