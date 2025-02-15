@@ -7,11 +7,28 @@ import html
 import os
 from auth import generate_token, token_required, verify_token, init_auth_routes
 from werkzeug.utils import secure_filename 
+from flask_swagger_ui import get_swaggerui_blueprint
+from flask_cors import CORS
+
 
 app = Flask(__name__)
+CORS(app)
 
-app = Flask(__name__)
-app.secret_key = "super_secret_key_123"  # Hardcoded secret key (CWE-798)
+SWAGGER_URL = '/api/docs'
+API_URL = '/static/openapi.json'
+
+swaggerui_blueprint = get_swaggerui_blueprint(
+    SWAGGER_URL,
+    API_URL,
+    config={
+        'app_name': "Vulnerable Bank API Documentation",
+        'validatorUrl': None
+    }
+)
+
+app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
+
+app.secret_key = "jwtsecret"  # Hardcoded secret key (CWE-798)
 
 UPLOAD_FOLDER = 'static/uploads'
 if not os.path.exists(UPLOAD_FOLDER):
