@@ -28,7 +28,7 @@ swaggerui_blueprint = get_swaggerui_blueprint(
 
 app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
 
-app.secret_key = "jwtsecret"  # Hardcoded secret key (CWE-798)
+app.secret_key = "secret123"  # Hardcoded secret key (CWE-798)
 
 UPLOAD_FOLDER = 'static/uploads'
 if not os.path.exists(UPLOAD_FOLDER):

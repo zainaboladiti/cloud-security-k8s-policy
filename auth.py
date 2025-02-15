@@ -1,13 +1,13 @@
 from flask import jsonify, request
 import jwt
 import datetime
-import sqlite3  # Add this import
+import sqlite3  
 from functools import wraps
 
 # Vulnerable JWT implementation with common security issues
 
 # Weak secret key (CWE-326)
-JWT_SECRET = "super_secret_123"
+JWT_SECRET = "secret123"
 
 # Vulnerable algorithm selection - allows 'none' algorithm
 ALGORITHMS = ['HS256', 'none']
