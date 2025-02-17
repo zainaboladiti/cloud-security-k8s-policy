@@ -29,38 +29,74 @@ This project is a simple banking application with multiple security vulnerabilit
    - SQL Injection in login
    - Weak JWT implementation
    - Broken object level authorization (BOLA)
-   - Broken object property level authorization (BOPLA)- Mass Assignment & Excessive Data Exposure
+   - Broken object property level authorization (BOPLA)
+   - Mass Assignment & Excessive Data Exposure
    - Weak password reset mechanism (3-digit PIN)
+   - Token stored in localStorage
+   - No server-side token invalidation
+   - No session expiration
 
 2. **Data Security**
    - Information disclosure
    - Sensitive data exposure
    - Plaintext password storage
    - SQL injection points
+   - Debug information exposure
+   - Detailed error messages exposed
 
-3. **File Operations**
+3. **Transaction Vulnerabilities**
+   - No amount validation
+   - Negative amount transfers possible
+   - No transaction limits
+   - Race conditions in transfers and balance updates
+   - Transaction history information disclosure
+   - No validation on recipient accounts
+
+4. **File Operations**
    - Unrestricted file upload
    - Path traversal vulnerabilities
    - No file type validation
    - Directory traversal
+   - No file size limits
+   - Unsafe file naming
 
-4. **Session Management**
+5. **Session Management**
    - Token vulnerabilities
    - No session expiration
    - Weak secret keys
+   - Token exposure in URLs
 
-5. **Client and Server-Side Flaws**
+6. **Client and Server-Side Flaws**
    - Cross Site Scripting (XSS)
    - Cross Site Request Forgery (CSRF)
+   - Insecure direct object references
+   - No rate limiting
 
 ## Installation & Setup 🚀
 
+### Prerequisites
+- Docker and Docker Compose (for containerized setup)
+- PostgreSQL (if running locally)
+- Python 3.9 or higher (for local setup)
+- Git
+
 ### Option 1: Using Docker (Recommended)
 
-#### Prerequisites
-- Docker installed
+#### Using Docker Compose (Easiest)
+1. Clone the repository:
+```bash
+git clone https://github.com/Commando-X/vuln-bank.git
+cd vuln-bank
+```
 
-#### Steps
+2. Start the application:
+```bash
+docker-compose up --build
+```
+
+The application will be available at `http://localhost:5000`
+
+#### Using Docker Only
 1. Clone the repository:
 ```bash
 git clone https://github.com/Commando-X/vuln-bank.git
@@ -77,10 +113,11 @@ docker build -t vuln-bank .
 docker run -p 5000:5000 vuln-bank
 ```
 
-### Option 2: Local Installation (Without Docker)
+### Option 2: Local Installation
 
 #### Prerequisites
 - Python 3.9 or higher
+- PostgreSQL installed and running
 - pip (Python package manager)
 - Git
 
@@ -116,7 +153,10 @@ mkdir static\uploads
 mkdir -p static/uploads
 ```
 
-5. Run the application:
+5. Modify the .env file:
+   - Open .env and change DB_HOST from 'db' to 'localhost' for local PostgreSQL connection
+
+6. Run the application:
 ```bash
 # On Windows
 python app.py
@@ -125,17 +165,27 @@ python app.py
 python3 app.py
 ```
 
-### Accessing the Application
-Once running, access the application at:
-```
-http://localhost:5000
+### Environment Variables
+The `.env` file is intentionally included in this repository to facilitate easy setup for educational purposes. In a real-world application, you should never commit `.env` files to version control.
+
+Current environment variables:
+```bash
+DB_NAME=vulnerable_bank
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_HOST=db  # Change to 'localhost' for local installation
+DB_PORT=5432
 ```
 
-### Accessing the API documentation
-Once running, access the api documentation at:
-```
-http://localhost:5000/api/docs
-```
+### Database Setup
+The application uses PostgreSQL. The database will be automatically initialized when you first run the application, creating:
+- Users table
+- Transactions table
+- Loans table
+
+### Accessing the Application
+- Main application: `http://localhost:5000`
+- API documentation: `http://localhost:5000/api/docs`
 
 ### Common Issues & Solutions
 
@@ -162,6 +212,12 @@ http://localhost:5000/api/docs
    sudo kill <PID>
    ```
 
+#### PostgreSQL Issues
+1. Connection refused:
+   - Ensure PostgreSQL is running
+   - Check credentials in .env file
+   - Verify PostgreSQL port is not blocked
+
 ## Testing Guide 🎯
 
 ### Authentication Testing
@@ -169,32 +225,43 @@ http://localhost:5000/api/docs
 2. Weak password reset (bruteforce 3-digit PIN)
 3. JWT token manipulation
 4. Username enumeration
+5. Token storage vulnerabilities
 
 ### Authorization Testing
 1. Access other users' transaction history via account number
 2. Upload malicious files
 3. Access admin panel
 4. Manipulate JWT claims
-5. Exploit BOPLA (Excessive Data Exposure and Mass Assignment) to esclate privilege and increase balance during registration
+5. Exploit BOPLA (Excessive Data Exposure and Mass Assignment)
+6. Privilege escalation through registration
+
+### Transaction Testing
+1. Attempt negative amount transfers
+2. Race conditions in transfers
+3. Transaction history access
+4. Balance manipulation
 
 ### File Upload Testing
 1. Upload unauthorized file types
 2. Attempt path traversal
 3. Upload oversized files
 4. Test file overwrite scenarios
+5. File type bypass
 
-### Logic Flaw Testing
-1. Race Conditions
-2. Funds Transfer flaws
+### API Security Testing
+1. Token manipulation
+2. BOLA/BOPLA in API endpoints
+3. Information disclosure
+4. Error message analysis
 
 ## Contributing 🤝
 
 Contributions are welcome! Feel free to:
 - Add new vulnerabilities
 - Improve existing features
-- Add security testing tools
+- Document testing scenarios
 - Enhance documentation
-- Fix bugs
+- Fix bugs (that aren't intentional vulnerabilities)
 
 ## Disclaimer ⚠️
 
@@ -203,7 +270,11 @@ This application contains intentional security vulnerabilities for educational p
 - Use with real personal data
 - Run on public networks
 - Use for malicious purposes
+- Store sensitive information
 
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ---
 Made with ❤️ for Security Education

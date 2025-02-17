@@ -49,6 +49,8 @@ def verify_token(token):
         except:
             return None
     except Exception as e:
+        # Vulnerability: Detailed error exposure in logs
+        print(f"Token verification error: {str(e)}")
         return None
 
 
@@ -69,6 +71,7 @@ def token_required(f):
             except IndexError:
                 token = None
                 
+        # Vulnerability: Multiple token locations (token hijacking risk)
         # Also check query parameters (vulnerable by design)
         if not token and 'token' in request.args:
             token = request.args['token']
@@ -89,10 +92,15 @@ def token_required(f):
             if current_user is None:
                 return jsonify({'error': 'Invalid token'}), 401
                 
+            # Vulnerability: No token expiration check
             return f(current_user, *args, **kwargs)
             
         except Exception as e:
-            return jsonify({'error': 'Invalid token', 'details': str(e)}), 401
+            # Vulnerability: Detailed error exposure
+            return jsonify({
+                'error': 'Invalid token', 
+                'details': str(e)
+            }), 401
             
     return decorated
 

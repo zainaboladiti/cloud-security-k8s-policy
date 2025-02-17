@@ -19,167 +19,117 @@
         .profile-upload {
             margin: 10px auto;
         }
+        .transaction-item {
+            border-bottom: 1px solid #eee;
+            padding: 10px;
+            margin: 5px 0;
+        }
+        .transaction-amount.sent {
+            color: red;
+        }
+        .transaction-amount.received {
+            color: green;
+        }
+        #message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f5f5f5;
+        }
     </style>
-
-    <script>
-        // Check for token and redirect if not present
-        document.addEventListener('DOMContentLoaded', function() {
-            const token = localStorage.getItem('jwt_token');
-            if (!token) {
-                window.location.href = '/login';
-                return;
-            }
-
-            // Add token to all forms
-            document.querySelectorAll('form:not(.profile-upload)').forEach(form => {
-                form.addEventListener('submit', function(e) {
-                    const token = localStorage.getItem('jwt_token');
-                    if (!token) {
-                        window.location.href = '/login';
-                        return;
-                    }
-                    
-                    // Add token to form data
-                    const formData = new FormData(this);
-                    formData.append('token', token);
-                });
-            });
-        });
-
-        function logout() {
-            localStorage.removeItem('jwt_token');
-            window.location.href = '/login';
-        }
-
-        function uploadProfilePicture(event) {
-            event.preventDefault();
-            const token = localStorage.getItem('jwt_token');
-            if (!token) {
-                window.location.href = '/login';
-                return;
-            }
-
-            const formData = new FormData(event.target);
-
-            fetch('/upload_profile_picture', {
-                method: 'POST',
-                headers: {
-                    'Authorization': 'Bearer ' + token
-                },
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    // Vulnerability: No sanitization of file_path
-                    document.getElementById('profile-picture').src = '/' + data.file_path;
-                    document.getElementById('upload-message').textContent = 'Upload successful!';
-                    document.getElementById('upload-message').style.color = 'green';
-
-                    event.target.reset();
-                } else {
-                    document.getElementById('upload-message').textContent = data.message;
-                    document.getElementById('upload-message').style.color = 'red';
-                }
-            })
-            .catch(error => {
-                document.getElementById('upload-message').textContent = 'Upload failed';
-                document.getElementById('upload-message').style.color = 'red';
-            });
-        }
-
-        function fetchTransactions() {
-        const token = localStorage.getItem('jwt_token');
-        const accountNumber = '{{ account_number }}';  // Vulnerability: Exposing account number in JS
-
-        fetch(`/transactions/${accountNumber}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    const transactionHtml = data.transactions.map(t => `
-                        <div class="transaction-item">
-                            <div class="transaction-amount ${t.from_account === accountNumber ? 'sent' : 'received'}">
-                                ${t.from_account === accountNumber ? '-' : '+'}$${t.amount}
-                            </div>
-                            <div class="transaction-details">
-                                ${t.from_account === accountNumber ? 'To: ' + t.to_account : 'From: ' + t.from_account}
-                                <br>
-                                <small>${t.timestamp}</small>
-                                <br>
-                                <small>${t.description}</small>
-                            </div>
-                        </div>
-                    `).join('');
-                    
-                    document.getElementById('transaction-list').innerHTML = transactionHtml || 'No transactions found';
-                }
-            })
-            .catch(error => {
-                document.getElementById('transaction-list').innerHTML = 'Error loading transactions';
-            });
-    }
-
-    // Call fetchTransactions when page loads
-    document.addEventListener('DOMContentLoaded', function() {
-        fetchTransactions();
-    });
-    </script>
 </head>
 <body>
     <div class="container">
+        <!-- Vulnerability: XSS possible in profile section -->
         <div class="profile-section">
+            <!-- Vulnerability: Path traversal possible in profile picture -->
             <img id="profile-picture" 
-                 class="profile-picture" 
-                 src="{{ url_for('static', filename='uploads/' + user.profile_picture) if user.profile_picture else url_for('static', filename='default-profile.png') }}" 
-                 alt="Profile Picture">
+            class="profile-picture" 
+            src="{{ url_for('static', filename='uploads/' + user.profile_picture) if user.profile_picture else url_for('static', filename='uploads/user.png') }}" 
+            alt="Profile Picture">
             
-            <form onsubmit="uploadProfilePicture(event)" class="profile-upload">
+            <!-- Vulnerability: No file type validation -->
+            <!-- Vulnerability: No file size limits -->
+            <form id="profileUploadForm" enctype="multipart/form-data">
                 <input type="file" name="profile_picture" accept="image/*">
                 <button type="submit">Upload Profile Picture</button>
             </form>
             <div id="upload-message"></div>
         </div>
 
+        <!-- Global message div for all notifications -->
+        <div id="message"></div>
+
+        <!-- Vulnerability: XSS possible in username -->
         <h1>Welcome, {{ username | safe }}</h1>
-        <p>Account Number: {{ account_number }}</p>
-        <p>Balance: ${{ balance }}</p>
+        <!-- Vulnerability: Sensitive information exposure -->
+        <p>Account Number: <span id="account-number">{{ account_number }}</span></p>
+        <p>Balance: $<span id="balance">{{ balance }}</span></p>
         
-        <div class="transfer-form">
+        <div class="section">
             <h2>Transfer Money</h2>
-            <form method="POST" action="{{ url_for('transfer') }}">
+            <!-- Vulnerability: No CSRF protection -->
+            <!-- Vulnerability: No amount validation -->
+            <form id="transferForm">
                 <input type="text" name="to_account" placeholder="Recipient Account Number" required>
                 <input type="number" name="amount" placeholder="Amount" step="0.01" required>
+                <input type="text" name="description" placeholder="Description (optional)">
                 <button type="submit">Transfer</button>
             </form>
         </div>
 
-        <div class="loan-form">
+        <div class="section">
             <h2>Request Loan</h2>
-            <form method="POST" action="{{ url_for('request_loan') }}">
+            <!-- Vulnerability: No loan amount validation -->
+            <form id="loanForm">
                 <input type="number" name="amount" placeholder="Loan Amount" step="0.01" required>
                 <button type="submit">Request Loan</button>
             </form>
         </div>
         
-        <div class="transaction-section">
+        <div class="section">
             <h2>Transaction History</h2>
+            <!-- Vulnerability: No pagination for transactions -->
             <div id="transaction-list">Loading transactions...</div>
         </div>
 
         {% if loans %}
-        <div class="loans-section">
+        <div class="section loans-section">
             <h2>Your Loans</h2>
             <table>
-                <tr>
-                    <th>Amount</th>
-                    <th>Status</th>
-                </tr>
-                {% for loan in loans %}
-                <tr>
-                    <td>${{ loan[2] }}</td>
-                    <td>{{ loan[3] }}</td>
-                </tr>
-                {% endfor %}
+                <thead>
+                    <tr>
+                        <th>Amount</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for loan in loans %}
+                    <tr>
+                        <td>${{ loan[2] }}</td>
+                        <td>{{ loan[3] }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
             </table>
         </div>
         {% endif %}
@@ -190,5 +140,200 @@
         
         <button onclick="logout()" class="button">Logout</button>
     </div>
+
+    <script>
+        // Vulnerability: Token stored in localStorage
+        document.addEventListener('DOMContentLoaded', function() {
+            const token = localStorage.getItem('jwt_token');
+            if (!token) {
+                window.location.href = '/login';
+                return;
+            }
+
+            fetchTransactions();
+
+            // Add event listeners
+            document.getElementById('transferForm').addEventListener('submit', handleTransfer);
+            document.getElementById('loanForm').addEventListener('submit', handleLoanRequest);
+            document.getElementById('profileUploadForm').addEventListener('submit', handleProfileUpload);
+        });
+
+        async function handleTransfer(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const jsonData = {};
+            formData.forEach((value, key) => jsonData[key] = value);
+
+            try {
+                const response = await fetch('/transfer', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + localStorage.getItem('jwt_token'),
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(jsonData)
+                });
+
+                const data = await response.json();
+                if (data.status === 'success') {
+                    // Update message and balance
+                    document.getElementById('message').innerHTML = data.message;
+                    document.getElementById('message').style.color = 'green';
+                    document.getElementById('balance').textContent = data.new_balance;
+                    
+                    // Refresh transactions
+                    fetchTransactions();
+                    
+                    // Clear form
+                    event.target.reset();
+                } else {
+                    document.getElementById('message').innerHTML = data.message;
+                    document.getElementById('message').style.color = 'red';
+                }
+            } catch (error) {
+                document.getElementById('message').innerHTML = 'Transfer failed';
+                document.getElementById('message').style.color = 'red';
+            }
+        }
+
+        async function handleLoanRequest(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const jsonData = {};
+            formData.forEach((value, key) => jsonData[key] = value);
+
+            try {
+                const response = await fetch('/request_loan', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + localStorage.getItem('jwt_token'),
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(jsonData)
+                });
+
+                const data = await response.json();
+                if (data.status === 'success') {
+                    document.getElementById('message').innerHTML = 'Loan requested successfully, our staff will review and approve!';
+                    document.getElementById('message').style.color = 'green';
+                    
+                    // Check if loans section exists, if not create it
+                    let loansSection = document.querySelector('.loans-section');
+                    if (!loansSection) {
+                        // Create new loans section
+                        loansSection = document.createElement('div');
+                        loansSection.className = 'section loans-section';
+                        loansSection.innerHTML = `
+                            <h2>Your Loans</h2>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Amount</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        `;
+                        // Add it before the admin panel button or logout button
+                        const container = document.querySelector('.container');
+                        const adminButton = document.querySelector('a.button') || document.querySelector('button.button');
+                        container.insertBefore(loansSection, adminButton);
+                    }
+                    
+                    // Add new loan to the table
+                    const loansTableBody = loansSection.querySelector('tbody');
+                    const newRow = document.createElement('tr');
+                    newRow.innerHTML = `
+                        <td>$${jsonData.amount}</td>
+                        <td>pending</td>
+                    `;
+                    loansTableBody.appendChild(newRow);
+                    
+                    // Clear form
+                    event.target.reset();
+                } else {
+                    document.getElementById('message').innerHTML = data.message;
+                    document.getElementById('message').style.color = 'red';
+                }
+            } catch (error) {
+                document.getElementById('message').innerHTML = 'Loan request failed';
+                document.getElementById('message').style.color = 'red';
+            }
+        }
+
+        async function handleProfileUpload(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+
+            try {
+                const response = await fetch('/upload_profile_picture', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + localStorage.getItem('jwt_token')
+                    },
+                    body: formData
+                });
+
+                const data = await response.json();
+                if (data.status === 'success') {
+                    // Vulnerability: No sanitization of file_path
+                    document.getElementById('profile-picture').src = '/' + data.file_path;
+                    document.getElementById('upload-message').innerHTML = 'Upload successful!';
+                    document.getElementById('upload-message').style.color = 'green';
+                    event.target.reset();
+                } else {
+                    document.getElementById('upload-message').innerHTML = data.message;
+                    document.getElementById('upload-message').style.color = 'red';
+                }
+            } catch (error) {
+                document.getElementById('upload-message').innerHTML = 'Upload failed';
+                document.getElementById('upload-message').style.color = 'red';
+            }
+        }
+
+        // Vulnerability: No rate limiting on transaction fetches
+        async function fetchTransactions() {
+            try {
+                const accountNumber = document.getElementById('account-number').textContent;
+                const response = await fetch(`/transactions/${accountNumber}`, {
+                    headers: {
+                        'Authorization': 'Bearer ' + localStorage.getItem('jwt_token')
+                    }
+                });
+
+                const data = await response.json();
+                if (data.status === 'success') {
+                    // Vulnerability: innerHTML used with unsanitized data
+                    const transactionHtml = data.transactions.map(t => `
+                        <div class="transaction-item">
+                            <div class="transaction-amount ${t.from_account === accountNumber ? 'sent' : 'received'}">
+                                ${t.from_account === accountNumber ? '-' : '+'}$${Math.abs(t.amount)}
+                            </div>
+                            <div class="transaction-details">
+                                ${t.from_account === accountNumber ? 'To: ' + t.to_account : 'From: ' + t.from_account}
+                                <br>
+                                <small>${t.timestamp}</small>
+                                <br>
+                                <small>${t.description || 'No description'}</small>
+                            </div>
+                        </div>
+                    `).join('');
+                    
+                    document.getElementById('transaction-list').innerHTML = 
+                        transactionHtml || 'No transactions found';
+                }
+            } catch (error) {
+                document.getElementById('transaction-list').innerHTML = 
+                    'Error loading transactions';
+            }
+        }
+
+        // Vulnerability: No server-side token invalidation
+        function logout() {
+            localStorage.removeItem('jwt_token');
+            window.location.href = '/login';
+        }
+    </script>
 </body>
 </html>
