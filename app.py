@@ -717,8 +717,21 @@ def api_transactions(current_user):
     try:
         transactions = execute_query(query)
         
+        # Convert Decimal objects to float for JSON serialization
+        transaction_list = []
+        for t in transactions:
+            transaction_list.append({
+                'id': t[0],
+                'from_account': t[1],
+                'to_account': t[2],
+                'amount': float(t[3]),  # Convert Decimal to float
+                'timestamp': str(t[4]),
+                'transaction_type': t[5],
+                'description': t[6]
+            })
+        
         return jsonify({
-            'transactions': transactions,
+            'transactions': transaction_list,
             'account_number': account_number
         })
         
