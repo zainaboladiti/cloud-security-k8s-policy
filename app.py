@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, make_response
-from datetime import datetime
+from datetime import datetime, timedelta
 import random
 import string
 import html
@@ -10,6 +10,7 @@ from werkzeug.utils import secure_filename
 from flask_swagger_ui import get_swaggerui_blueprint
 from flask_cors import CORS
 from database import init_connection_pool, init_db, execute_query, execute_transaction
+import time  # Add this import at the top
 
 # Load environment variables
 load_dotenv()
@@ -44,6 +45,16 @@ if not os.path.exists(UPLOAD_FOLDER):
 
 def generate_account_number():
     return ''.join(random.choices(string.digits, k=10))
+
+def generate_card_number():
+    """Generate a 16-digit card number"""
+    # Vulnerability: Predictable card number generation
+    return ''.join(random.choices(string.digits, k=16))
+
+def generate_cvv():
+    """Generate a 3-digit CVV"""
+    # Vulnerability: Predictable CVV generation
+    return ''.join(random.choices(string.digits, k=3))
 
 @app.route('/')
 def index():
@@ -724,7 +735,7 @@ def api_transactions(current_user):
                 'id': t[0],
                 'from_account': t[1],
                 'to_account': t[2],
-                'amount': float(t[3]),  # Convert Decimal to float
+                'amount': float(t[3]),
                 'timestamp': str(t[4]),
                 'transaction_type': t[5],
                 'description': t[6]
@@ -737,6 +748,444 @@ def api_transactions(current_user):
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/virtual-cards/create', methods=['POST'])
+@token_required
+def create_virtual_card(current_user):
+    try:
+        data = request.get_json()
+        
+        # Vulnerability: No validation on card limit
+        card_limit = float(data.get('card_limit', 1000.0))
+        
+        # Generate card details
+        card_number = generate_card_number()
+        cvv = generate_cvv()
+        # Vulnerability: Fixed expiry date calculation
+        expiry_date = (datetime.now() + timedelta(days=365)).strftime('%m/%y')
+        
+        # Vulnerability: SQL injection possible in card_type
+        card_type = data.get('card_type', 'standard')
+        
+        # Create virtual card
+        query = f"""
+            INSERT INTO virtual_cards 
+            (user_id, card_number, cvv, expiry_date, card_limit, card_type)
+            VALUES 
+            ({current_user['user_id']}, '{card_number}', '{cvv}', '{expiry_date}', {card_limit}, '{card_type}')
+            RETURNING id
+        """
+        
+        result = execute_query(query)
+        
+        if result:
+            # Vulnerability: Sensitive data exposure
+            return jsonify({
+                'status': 'success',
+                'message': 'Virtual card created successfully',
+                'card_details': {
+                    'card_number': card_number,
+                    'cvv': cvv,
+                    'expiry_date': expiry_date,
+                    'limit': card_limit,
+                    'type': card_type
+                }
+            })
+            
+        return jsonify({
+            'status': 'error',
+            'message': 'Failed to create virtual card'
+        }), 500
+        
+    except Exception as e:
+        # Vulnerability: Detailed error exposure
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/virtual-cards', methods=['GET'])
+@token_required
+def get_virtual_cards(current_user):
+    try:
+        # Vulnerability: No pagination
+        query = f"""
+            SELECT * FROM virtual_cards 
+            WHERE user_id = {current_user['user_id']}
+        """
+        
+        cards = execute_query(query)
+        
+        # Vulnerability: Sensitive data exposure
+        return jsonify({
+            'status': 'success',
+            'cards': [{
+                'id': card[0],
+                'card_number': card[2],
+                'cvv': card[3],
+                'expiry_date': card[4],
+                'limit': float(card[5]),
+                'balance': float(card[6]),
+                'is_frozen': card[7],
+                'is_active': card[8],
+                'created_at': str(card[9]),
+                'last_used_at': str(card[10]) if card[10] else None,
+                'card_type': card[11]
+            } for card in cards]
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/virtual-cards/<int:card_id>/toggle-freeze', methods=['POST'])
+@token_required
+def toggle_card_freeze(current_user, card_id):
+    try:
+        # Vulnerability: No CSRF protection
+        # Vulnerability: BOLA - no verification if card belongs to user
+        query = f"""
+            UPDATE virtual_cards 
+            SET is_frozen = NOT is_frozen 
+            WHERE id = {card_id}
+            RETURNING is_frozen
+        """
+        
+        result = execute_query(query)
+        
+        if result:
+            return jsonify({
+                'status': 'success',
+                'message': f"Card {'frozen' if result[0][0] else 'unfrozen'} successfully"
+            })
+            
+        return jsonify({
+            'status': 'error',
+            'message': 'Card not found'
+        }), 404
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/virtual-cards/<int:card_id>/transactions', methods=['GET'])
+@token_required
+def get_card_transactions(current_user, card_id):
+    try:
+        # Vulnerability: BOLA - no verification if card belongs to user
+        # Vulnerability: SQL Injection possible
+        query = f"""
+            SELECT ct.*, vc.card_number 
+            FROM card_transactions ct
+            JOIN virtual_cards vc ON ct.card_id = vc.id
+            WHERE ct.card_id = {card_id}
+            ORDER BY ct.timestamp DESC
+        """
+        
+        transactions = execute_query(query)
+        
+        # Vulnerability: Information disclosure
+        return jsonify({
+            'status': 'success',
+            'transactions': [{
+                'id': t[0],
+                'amount': float(t[2]),
+                'merchant': t[3],
+                'type': t[4],
+                'status': t[5],
+                'timestamp': str(t[6]),
+                'description': t[7],
+                'card_number': t[8]
+            } for t in transactions]
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/virtual-cards/<int:card_id>/update-limit', methods=['POST'])
+@token_required
+def update_card_limit(current_user, card_id):
+    try:
+        data = request.get_json()
+        
+        # Mass Assignment Vulnerability - Build dynamic query based on all input fields
+        update_fields = []
+        update_values = []
+        updated_fields_list = []  # Store field names in a regular list
+        
+        # Iterate through all fields sent in request
+        # Vulnerability: No whitelist of allowed fields
+        # This allows updating any column including balance
+        for key, value in data.items():
+            # Convert value to float if it's numeric
+            try:
+                value = float(value)
+            except (ValueError, TypeError):
+                value = str(value)
+            
+            # Vulnerability: Direct field name injection
+            update_fields.append(f"{key} = %s")
+            update_values.append(value)
+            updated_fields_list.append(key)  # Add to list instead of dict_keys
+            
+        # Vulnerability: BOLA - no verification if card belongs to user
+        query = f"""
+            UPDATE virtual_cards 
+            SET {', '.join(update_fields)}
+            WHERE id = {card_id}
+            RETURNING *
+        """
+        
+        result = execute_query(query, tuple(update_values))
+        
+        if result:
+            # Vulnerability: Information disclosure - returning all updated fields
+            return jsonify({
+                'status': 'success',
+                'message': 'Card updated successfully',
+                'debug_info': {
+                    'updated_fields': updated_fields_list,  # Use list instead of dict_keys
+                    'card_details': {
+                        'id': result[0][0],
+                        'card_limit': float(result[0][5]),
+                        'current_balance': float(result[0][6]),
+                        'is_frozen': result[0][7],
+                        'is_active': result[0][8],
+                        'card_type': result[0][11]
+                    }
+                }
+            })
+            
+        return jsonify({
+            'status': 'error',
+            'message': 'Card not found'
+        }), 404
+            
+    except Exception as e:
+        # Vulnerability: Detailed error exposure
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/bill-categories', methods=['GET'])
+def get_bill_categories():
+    try:
+        # Vulnerability: No authentication required
+        query = "SELECT * FROM bill_categories WHERE is_active = TRUE"
+        categories = execute_query(query)
+        
+        return jsonify({
+            'status': 'success',
+            'categories': [{
+                'id': cat[0],
+                'name': cat[1],
+                'description': cat[2]
+            } for cat in categories]
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)  # Vulnerability: Detailed error exposure
+        }), 500
+
+@app.route('/api/billers/by-category/<int:category_id>', methods=['GET'])
+def get_billers_by_category(category_id):
+    try:
+        # Vulnerability: SQL injection possible
+        query = f"""
+            SELECT * FROM billers 
+            WHERE category_id = {category_id} 
+            AND is_active = TRUE
+        """
+        billers = execute_query(query)
+        
+        # Vulnerability: Information disclosure
+        return jsonify({
+            'status': 'success',
+            'billers': [{
+                'id': b[0],
+                'name': b[2],
+                'account_number': b[3],  # Vulnerability: Exposing account numbers
+                'description': b[4],
+                'minimum_amount': float(b[5]),
+                'maximum_amount': float(b[6]) if b[6] else None
+            } for b in billers]
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/bill-payments/create', methods=['POST'])
+@token_required
+def create_bill_payment(current_user):
+    try:
+        data = request.get_json()
+        
+        # Get required fields
+        biller_id = data.get('biller_id')
+        amount = float(data.get('amount'))
+        payment_method = data.get('payment_method')
+        card_id = data.get('card_id') if payment_method == 'virtual_card' else None
+        
+        # Vulnerability: No input validation
+        # Vulnerability: No amount validation
+        # Vulnerability: No payment method validation
+        
+        if payment_method == 'virtual_card' and card_id:
+            # Vulnerability: BOLA - no verification if card belongs to user
+            # Vulnerability: SQL injection possible
+            card_query = f"""
+                SELECT current_balance, card_limit, is_frozen 
+                FROM virtual_cards 
+                WHERE id = {card_id}
+            """
+            card = execute_query(card_query)[0]
+            
+            if card[2]:  # is_frozen
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Card is frozen'
+                }), 400
+                
+            if amount > float(card[0]):  # current_balance
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Insufficient card balance'
+                }), 400
+                
+        elif payment_method == 'balance':
+            # Check user balance
+            # Vulnerability: Race condition possible
+            user_query = f"""
+                SELECT balance FROM users
+                WHERE id = {current_user['user_id']}
+            """
+            user_balance = float(execute_query(user_query)[0][0])
+            
+            if amount > user_balance:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Insufficient balance'
+                }), 400
+        
+        # Generate reference number
+        reference = f"BILL{int(time.time())}"  # Vulnerability: Predictable reference numbers
+        
+        # Create payment record
+        queries = []
+        
+        # Insert payment record
+        payment_query = """
+            INSERT INTO bill_payments 
+            (user_id, biller_id, amount, payment_method, card_id, reference_number, description)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+        """
+        payment_values = (
+            current_user['user_id'], 
+            biller_id, 
+            amount, 
+            payment_method,
+            card_id,
+            reference,
+            data.get('description', 'Bill Payment')
+        )
+        queries.append((payment_query, payment_values))
+        
+        # Update balance based on payment method
+        if payment_method == 'virtual_card':
+            card_update = """
+                UPDATE virtual_cards 
+                SET current_balance = current_balance - %s 
+                WHERE id = %s
+            """
+            queries.append((card_update, (amount, card_id)))
+        else:
+            balance_update = """
+                UPDATE users 
+                SET balance = balance - %s 
+                WHERE id = %s
+            """
+            queries.append((balance_update, (amount, current_user['user_id'])))
+        
+        # Vulnerability: No transaction atomicity
+        execute_transaction(queries)
+        
+        # Vulnerability: Information disclosure
+        return jsonify({
+            'status': 'success',
+            'message': 'Payment processed successfully',
+            'payment_details': {
+                'reference': reference,
+                'amount': amount,
+                'payment_method': payment_method,
+                'card_id': card_id,
+                'timestamp': str(datetime.now()),
+                'processed_by': current_user['username']
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/bill-payments/history', methods=['GET'])
+@token_required
+def get_payment_history(current_user):
+    try:
+        # Vulnerability: No pagination
+        # Vulnerability: SQL injection possible
+        query = f"""
+            SELECT 
+                bp.*,
+                b.name as biller_name,
+                bc.name as category_name,
+                vc.card_number
+            FROM bill_payments bp
+            JOIN billers b ON bp.biller_id = b.id
+            JOIN bill_categories bc ON b.category_id = bc.id
+            LEFT JOIN virtual_cards vc ON bp.card_id = vc.id
+            WHERE bp.user_id = {current_user['user_id']}
+            ORDER BY bp.created_at DESC
+        """
+        
+        payments = execute_query(query)
+        
+        # Vulnerability: Excessive data exposure
+        return jsonify({
+            'status': 'success',
+            'payments': [{
+                'id': p[0],
+                'amount': float(p[3]),
+                'payment_method': p[4],
+                'card_number': p[13] if p[13] else None,
+                'reference': p[6],
+                'status': p[7],
+                'created_at': str(p[8]),
+                'processed_at': str(p[9]) if p[9] else None,
+                'description': p[10],
+                'biller_name': p[11],
+                'category_name': p[12]
+            } for p in payments]
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
 
 if __name__ == '__main__':
     init_db()

@@ -99,6 +99,38 @@ def init_db():
                 )
             ''')
             
+            # Create virtual cards table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS virtual_cards (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                    card_number TEXT NOT NULL UNIQUE,  -- Vulnerability: Card numbers stored in plaintext
+                    cvv TEXT NOT NULL,  -- Vulnerability: CVV stored in plaintext
+                    expiry_date TEXT NOT NULL,
+                    card_limit DECIMAL(15, 2) DEFAULT 1000.0,
+                    current_balance DECIMAL(15, 2) DEFAULT 0.0,
+                    is_frozen BOOLEAN DEFAULT FALSE,
+                    is_active BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    last_used_at TIMESTAMP,
+                    card_type TEXT DEFAULT 'standard'  -- Vulnerability: No validation on card type
+                )
+            ''')
+
+            # Create virtual card transactions table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS card_transactions (
+                    id SERIAL PRIMARY KEY,
+                    card_id INTEGER REFERENCES virtual_cards(id) ON DELETE CASCADE,
+                    amount DECIMAL(15, 2) NOT NULL,
+                    merchant_name TEXT,  -- Vulnerability: No input validation
+                    transaction_type TEXT NOT NULL,
+                    status TEXT DEFAULT 'pending',
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    description TEXT
+                )
+            ''')
+            
             # Create default admin account if it doesn't exist
             cursor.execute("SELECT * FROM users WHERE username='admin'")
             if not cursor.fetchone():
@@ -109,6 +141,71 @@ def init_db():
                     """,
                     ('admin', 'admin123', 'ADMIN001', 1000000.0, True)
                 )
+            
+            # Create bill categories table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS bill_categories (
+                    id SERIAL PRIMARY KEY,
+                    name TEXT NOT NULL UNIQUE,
+                    description TEXT,
+                    is_active BOOLEAN DEFAULT TRUE
+                )
+            ''')
+
+            # Create billers table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS billers (
+                    id SERIAL PRIMARY KEY,
+                    category_id INTEGER REFERENCES bill_categories(id),
+                    name TEXT NOT NULL,
+                    account_number TEXT NOT NULL,  -- Vulnerability: No encryption
+                    description TEXT,
+                    minimum_amount DECIMAL(15, 2) DEFAULT 0,
+                    maximum_amount DECIMAL(15, 2),  -- Vulnerability: No validation
+                    is_active BOOLEAN DEFAULT TRUE
+                )
+            ''')
+
+            # Create bill payments table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS bill_payments (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                    biller_id INTEGER REFERENCES billers(id),
+                    amount DECIMAL(15, 2) NOT NULL,
+                    payment_method TEXT NOT NULL,  -- 'balance' or 'virtual_card'
+                    card_id INTEGER REFERENCES virtual_cards(id),  -- NULL if paid with balance
+                    reference_number TEXT,  -- Vulnerability: No unique constraint
+                    status TEXT DEFAULT 'pending',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    processed_at TIMESTAMP,
+                    description TEXT
+                )
+            ''')
+
+            # Insert default bill categories
+            cursor.execute("""
+                INSERT INTO bill_categories (name, description) 
+                VALUES 
+                ('Utilities', 'Water, Electricity, Gas bills'),
+                ('Telecommunications', 'Phone, Internet, Cable TV'),
+                ('Insurance', 'Life, Health, Auto insurance'),
+                ('Credit Cards', 'Credit card bill payments')
+                ON CONFLICT (name) DO NOTHING
+            """)
+
+            # Insert sample billers
+            cursor.execute("""
+                INSERT INTO billers (category_id, name, account_number, description, minimum_amount) 
+                VALUES 
+                (1, 'City Water', 'WATER001', 'City Water Utility', 10),
+                (1, 'PowerGen Electric', 'POWER001', 'Electricity Provider', 20),
+                (2, 'TeleCom Services', 'TEL001', 'Phone and Internet', 25),
+                (2, 'CableTV Plus', 'CABLE001', 'Cable TV Services', 30),
+                (3, 'HealthFirst Insurance', 'INS001', 'Health Insurance', 100),
+                (4, 'Universal Bank Card', 'CC001', 'Credit Card Payments', 50)
+                ON CONFLICT DO NOTHING
+            """)
             
             conn.commit()
             print("Database initialized successfully")

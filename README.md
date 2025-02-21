@@ -22,6 +22,8 @@ This project is a simple banking application with multiple security vulnerabilit
 - 👤 Profile Picture Upload
 - 📊 Transaction History
 - 🔑 Password Reset System (3-digit PIN)
+- 💳 Virtual Cards Management
+- 📱 Bill Payments System
 
 ### Implemented Vulnerabilities
 
@@ -71,6 +73,28 @@ This project is a simple banking application with multiple security vulnerabilit
    - Cross Site Request Forgery (CSRF)
    - Insecure direct object references
    - No rate limiting
+
+7. **Virtual Card Vulnerabilities**
+   - Mass Assignment in card limit updates
+   - Predictable card number generation
+   - Plaintext storage of card details
+   - No validation on card limits
+   - BOLA in card operations
+   - Race conditions in balance updates
+   - Card detail information disclosure
+   - No transaction verification
+   - Lack of card activity monitoring
+
+8. **Bill Payment Vulnerabilities**
+   - No validation on payment amounts
+   - SQL injection in biller queries
+   - Information disclosure in payment history
+   - Predictable reference numbers
+   - Transaction history exposure
+   - No validation on biller accounts
+   - Race conditions in payment processing
+   - BOLA in payment history access
+   - Missing payment limits
 
 ## Installation & Setup 🚀
 
@@ -253,6 +277,24 @@ The application uses PostgreSQL. The database will be automatically initialized 
 2. BOLA/BOPLA in API endpoints
 3. Information disclosure
 4. Error message analysis
+
+### Virtual Card Testing
+
+1. Exploit mass assignment in card limit updates
+2. Analyze card number generation patterns
+3. Access unauthorized card details
+4. Test card freezing bypasses
+5. Transaction history manipulation
+6. Card limit validation bypass
+
+### Bill Payment Testing
+
+1. Test biller enumeration
+2. Payment amount validation bypass
+3. Access unauthorized payment history
+4. SQL injection in biller selection
+5. Reference number prediction
+6. Race condition exploitation in payments
 
 ## Contributing 🤝
 

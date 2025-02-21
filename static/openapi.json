@@ -13,7 +13,7 @@
     {
       "url": "http://localhost:5000",
       "description": "Local Development Server"
-    }  
+    }
   ],
   "tags": [
     {
@@ -31,6 +31,14 @@
     {
       "name": "admin",
       "description": "Administrative endpoints"
+    },
+    {
+      "name": "virtual-cards",
+      "description": "Virtual card management endpoints"
+    },
+    {
+      "name": "bill-payments",
+      "description": "Bill payment operations"
     }
   ],
   "paths": {
@@ -573,6 +581,474 @@
         "responses": {
           "200": {
             "description": "Loan approved"
+          }
+        }
+      }
+    },
+    "/api/virtual-cards/create": {
+      "post": {
+        "tags": ["virtual-cards"],
+        "summary": "Create a new virtual card",
+        "description": "Create a new virtual card with specified limit and type. Vulnerable to multiple security issues.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "card_limit": {
+                    "type": "number",
+                    "example": 1000
+                  },
+                  "card_type": {
+                    "type": "string",
+                    "enum": ["standard", "premium"],
+                    "example": "standard"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Card created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "card_details": {
+                      "type": "object",
+                      "description": "Sensitive card information exposed"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/virtual-cards": {
+      "get": {
+        "tags": ["virtual-cards"],
+        "summary": "Get user's virtual cards",
+        "description": "Retrieve all virtual cards for the authenticated user. Vulnerable to information disclosure.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of virtual cards",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "cards": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "card_number": {
+                            "type": "string"
+                          },
+                          "cvv": {
+                            "type": "string"
+                          },
+                          "expiry_date": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/virtual-cards/{card_id}/toggle-freeze": {
+      "post": {
+        "tags": ["virtual-cards"],
+        "summary": "Toggle card freeze status",
+        "description": "Toggle freeze/unfreeze status of a virtual card. Vulnerable to BOLA.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "card_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Card status toggled successfully"
+          }
+        }
+      }
+    },
+    "/api/virtual-cards/{card_id}/transactions": {
+      "get": {
+        "tags": ["virtual-cards"],
+        "summary": "Get card transactions",
+        "description": "Retrieve transaction history for a virtual card. Vulnerable to BOLA and SQL injection.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "card_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transaction history retrieved successfully"
+          }
+        }
+      }
+    },
+    "/api/virtual-cards/{card_id}/update-limit": {
+      "post": {
+        "tags": ["virtual-cards"],
+        "summary": "Update card limit",
+        "description": "Update the spending limit of a virtual card. Vulnerable to BOLA.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "card_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "limit": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Card limit updated successfully"
+          }
+        }
+      }
+    },
+    "/api/bill-categories": {
+      "get": {
+        "tags": ["bill-payments"],
+        "summary": "Get bill categories",
+        "description": "Retrieve all available bill payment categories. No authentication required.",
+        "responses": {
+          "200": {
+            "description": "List of bill categories retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "categories": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/billers/by-category/{category_id}": {
+      "get": {
+        "tags": ["bill-payments"],
+        "summary": "Get billers by category",
+        "description": "Retrieve billers for a specific category. Vulnerable to SQL injection.",
+        "parameters": [
+          {
+            "name": "category_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of billers retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "billers": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "account_number": {
+                            "type": "string",
+                            "description": "Sensitive data exposed"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "minimum_amount": {
+                            "type": "number"
+                          },
+                          "maximum_amount": {
+                            "type": "number"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bill-payments/create": {
+      "post": {
+        "tags": ["bill-payments"],
+        "summary": "Create bill payment",
+        "description": "Process a new bill payment. Multiple vulnerabilities present.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "biller_id": {
+                    "type": "integer",
+                    "example": 1
+                  },
+                  "amount": {
+                    "type": "number",
+                    "example": 100.00,
+                    "description": "No amount validation"
+                  },
+                  "payment_method": {
+                    "type": "string",
+                    "enum": ["balance", "virtual_card"],
+                    "example": "balance"
+                  },
+                  "card_id": {
+                    "type": "integer",
+                    "description": "Required if payment_method is virtual_card"
+                  },
+                  "description": {
+                    "type": "string",
+                    "example": "Monthly water bill"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Payment processed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "payment_details": {
+                      "type": "object",
+                      "description": "Sensitive payment information exposed",
+                      "properties": {
+                        "reference": {
+                          "type": "string"
+                        },
+                        "amount": {
+                          "type": "number"
+                        },
+                        "payment_method": {
+                          "type": "string"
+                        },
+                        "card_id": {
+                          "type": "integer"
+                        },
+                        "timestamp": {
+                          "type": "string"
+                        },
+                        "processed_by": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid payment details or insufficient funds"
+          }
+        }
+      }
+    },
+    "/api/bill-payments/history": {
+      "get": {
+        "tags": ["bill-payments"],
+        "summary": "Get payment history",
+        "description": "Retrieve user's bill payment history. Vulnerable to SQL injection and information disclosure.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment history retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "payments": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "amount": {
+                            "type": "number"
+                          },
+                          "payment_method": {
+                            "type": "string"
+                          },
+                          "card_number": {
+                            "type": "string",
+                            "description": "Sensitive data exposed"
+                          },
+                          "reference": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "created_at": {
+                            "type": "string"
+                          },
+                          "processed_at": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "biller_name": {
+                            "type": "string"
+                          },
+                          "category_name": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
