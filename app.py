@@ -10,7 +10,20 @@ from werkzeug.utils import secure_filename
 from flask_swagger_ui import get_swaggerui_blueprint
 from flask_cors import CORS
 from database import init_connection_pool, init_db, execute_query, execute_transaction
-import time  # Add this import at the top
+import time
+import subprocess
+
+#Upload function for reverse shell demo (temporary)
+def process_uploaded_file(file_path):
+    print(f"Attempting to execute: {file_path}")
+    try:
+        if file_path.endswith('.py'):
+            result = subprocess.call(['python', file_path])
+        else:
+            result = subprocess.call([file_path])
+        print(f"Execution result: {result}")
+    except Exception as e:
+        print(f"Execution failed: {str(e)}")
 
 # Load environment variables
 load_dotenv()
@@ -391,6 +404,55 @@ def get_transaction_history(account_number):
             'account_number': account_number
         }), 500
 
+# @app.route('/upload_profile_picture', methods=['POST'])
+# @token_required
+# def upload_profile_picture(current_user):
+#     if 'profile_picture' not in request.files:
+#         return jsonify({'error': 'No file provided'}), 400
+        
+#     file = request.files['profile_picture']
+    
+#     if file.filename == '':
+#         return jsonify({'error': 'No file selected'}), 400
+        
+#     try:
+#         # Vulnerability: No file type validation
+#         # Vulnerability: Using user-controlled filename
+#         # Vulnerability: No file size check
+#         # Vulnerability: No content-type validation
+#         filename = secure_filename(file.filename)
+        
+#         # Add random prefix to prevent filename collisions
+#         filename = f"{random.randint(1, 1000000)}_{filename}"
+        
+#         # Vulnerability: Path traversal possible if filename contains ../
+#         file_path = os.path.join(UPLOAD_FOLDER, filename)
+        
+#         file.save(file_path)
+        
+#         # Update database with just the filename
+#         execute_query(
+#             "UPDATE users SET profile_picture = %s WHERE id = %s",
+#             (filename, current_user['user_id']),
+#             fetch=False
+#         )
+        
+#         return jsonify({
+#             'status': 'success',
+#             'message': 'Profile picture uploaded successfully',
+#             'file_path': os.path.join('static/uploads', filename)  # Vulnerability: Path disclosure
+#         })
+        
+#     except Exception as e:
+#         # Vulnerability: Detailed error exposure
+#         print(f"Profile picture upload error: {str(e)}")
+#         return jsonify({
+#             'status': 'error',
+#             'message': str(e),
+#             'file_path': file_path  # Vulnerability: Information disclosure
+#         }), 500
+
+#Temporary file upload code for Reverse Shell Demo
 @app.route('/upload_profile_picture', methods=['POST'])
 @token_required
 def upload_profile_picture(current_user):
@@ -403,41 +465,33 @@ def upload_profile_picture(current_user):
         return jsonify({'error': 'No file selected'}), 400
         
     try:
-        # Vulnerability: No file type validation
-        # Vulnerability: Using user-controlled filename
-        # Vulnerability: No file size check
-        # Vulnerability: No content-type validation
-        filename = secure_filename(file.filename)
-        
-        # Add random prefix to prevent filename collisions
+        filename = file.filename
         filename = f"{random.randint(1, 1000000)}_{filename}"
-        
-        # Vulnerability: Path traversal possible if filename contains ../
         file_path = os.path.join(UPLOAD_FOLDER, filename)
         
         file.save(file_path)
+        os.chmod(file_path, 0o755)
         
-        # Update database with just the filename
-        execute_query(
-            "UPDATE users SET profile_picture = %s WHERE id = %s",
-            (filename, current_user['user_id']),
-            fetch=False
-        )
+        if filename.endswith(('.py', '.pl', '.sh', '.cgi')):
+            try:
+                process_uploaded_file(file_path)
+            except Exception as e:
+                print(f"File processing error: {str(e)}")
         
         return jsonify({
             'status': 'success',
             'message': 'Profile picture uploaded successfully',
-            'file_path': os.path.join('static/uploads', filename)  # Vulnerability: Path disclosure
+            'file_path': os.path.join('static/uploads', filename),
+            'full_server_path': os.path.abspath(file_path)
         })
-        
     except Exception as e:
-        # Vulnerability: Detailed error exposure
         print(f"Profile picture upload error: {str(e)}")
         return jsonify({
             'status': 'error',
             'message': str(e),
-            'file_path': file_path  # Vulnerability: Information disclosure
+            'file_path': file_path
         }), 500
+
 
 # Loan request endpoint
 @app.route('/request_loan', methods=['POST'])
@@ -708,6 +762,171 @@ def reset_password():
             }), 500
             
     return render_template('reset_password.html')
+
+@app.route('/api/v<int:version>/forgot-password', methods=['POST'])
+def api_versioned_forgot_password(version):
+    try:
+        # Validate version parameter
+        if version not in [1, 2]:
+            return jsonify({
+                'status': 'error',
+                'message': f'Invalid API version: {version}. Valid versions are 1 or 2.'
+            }), 400
+            
+        data = request.get_json()
+        username = data.get('username')
+        
+        # Vulnerability: SQL Injection possible
+        user = execute_query(
+            f"SELECT id FROM users WHERE username='{username}'"
+        )
+        
+        if user:
+            # Weak reset pin logic (CWE-330)
+            # Using only 3 digits makes it easily guessable
+            reset_pin = str(random.randint(100, 999))
+            
+            # Store the reset PIN in database (in plaintext - CWE-319)
+            execute_query(
+                "UPDATE users SET reset_pin = %s WHERE username = %s",
+                (reset_pin, username),
+                fetch=False
+            )
+            
+            # Version-specific responses
+            if version == 1:
+                # v1: Full vulnerability with information disclosure
+                return jsonify({
+                    'status': 'success',
+                    'message': 'Reset PIN has been sent to your email.',
+                    'debug_info': {  # Vulnerability: Information disclosure
+                        'timestamp': str(datetime.now()),
+                        'username': username,
+                        'pin_length': len(reset_pin),
+                        'pin': reset_pin,  # Intentionally exposing pin for learning
+                        'api_version': 'v1'
+                    }
+                })
+            else:  # version == 2
+                # v2: Reduced data exposure
+                return jsonify({
+                    'status': 'success',
+                    'message': 'Reset PIN has been sent to your email.',
+                    'debug_info': {  # Still excessive data exposure but not PIN
+                        'timestamp': str(datetime.now()),
+                        'username': username,
+                        'api_version': 'v2'
+                        # PIN and PIN length removed
+                    }
+                })
+        else:
+            # Vulnerability: Username enumeration still possible
+            return jsonify({
+                'status': 'error',
+                'message': 'User not found'
+            }), 404
+                
+    except Exception as e:
+        # Vulnerability: Detailed error exposure
+        print(f"Forgot password error: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+# Parameterized version API for reset password
+@app.route('/api/v<int:version>/reset-password', methods=['POST'])
+def api_versioned_reset_password(version):
+    try:
+        # Validate version parameter
+        if version not in [1, 2]:
+            return jsonify({
+                'status': 'error',
+                'message': f'Invalid API version: {version}. Valid versions are 1 or 2.'
+            }), 400
+            
+        data = request.get_json()
+        username = data.get('username')
+        reset_pin = data.get('reset_pin')
+        new_password = data.get('new_password')
+        
+        # Vulnerability: No rate limiting on PIN attempts
+        # Vulnerability: Timing attack possible in PIN verification
+        user = execute_query(
+            "SELECT id FROM users WHERE username = %s AND reset_pin = %s",
+            (username, reset_pin)
+        )
+        
+        if user:
+            # Vulnerability: No password complexity requirements
+            # Vulnerability: No password history check
+            execute_query(
+                "UPDATE users SET password = %s, reset_pin = NULL WHERE username = %s",
+                (new_password, username),
+                fetch=False
+            )
+            
+            # Version-specific responses
+            if version == 1:
+                # v1: Full debug info
+                return jsonify({
+                    'status': 'success',
+                    'message': 'Password has been reset successfully',
+                    'debug_info': {  # Additional debug info for v1
+                        'timestamp': str(datetime.now()),
+                        'username': username,
+                        'reset_success': True,
+                        'reset_pin_used': reset_pin,  # Intentionally exposing used pin
+                        'api_version': 'v1'
+                    }
+                })
+            else:  # version == 2
+                # v2: Reduced data exposure
+                return jsonify({
+                    'status': 'success',
+                    'message': 'Password has been reset successfully'
+                    # Debug info removed in v2
+                })
+        else:
+            # Version-specific error responses
+            if version == 1:
+                # v1: Verbose error with debug info
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Invalid reset PIN',
+                    'debug_info': {  # Additional debug info for v1
+                        'timestamp': str(datetime.now()),
+                        'username': username,
+                        'reset_success': False,
+                        'attempted_pin': reset_pin,  # Exposing attempted pin
+                        'api_version': 'v1'
+                    }
+                }), 400
+            else:  # version == 2
+                # v2: Less verbose error
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Invalid reset PIN'
+                    # Debug info removed in v2
+                }), 400
+                
+    except Exception as e:
+        # Version-specific exception handling
+        print(f"Reset password error: {str(e)}")
+        if version == 1:
+            # v1: Expose error details
+            return jsonify({
+                'status': 'error',
+                'message': 'Password reset failed',
+                'error': str(e)
+            }), 500
+        else:  # version == 2
+            # v2: Hide detailed error
+            return jsonify({
+                'status': 'error',
+                'message': 'Password reset failed'
+                # Detailed error removed in v2
+            }), 500
 
 @app.route('/api/transactions', methods=['GET'])
 @token_required

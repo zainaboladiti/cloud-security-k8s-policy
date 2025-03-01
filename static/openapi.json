@@ -141,11 +141,24 @@
         }
       }
     },
-    "/forgot-password": {
+    "/api/v{version}/forgot-password": {
       "post": {
         "tags": ["authentication"],
-        "summary": "Request password reset",
-        "description": "Generate 3-digit reset PIN. Vulnerable to brute force.",
+        "summary": "Request password reset (versioned)",
+        "description": "Generate 3-digit reset PIN. Different versions have different levels of data exposure.",
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "description": "API version (1: old endpoint, 2: new endpoint with bug fixes)",
+            "schema": {
+              "type": "integer",
+              "enum": [1, 2],
+              "default": 2
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -177,21 +190,37 @@
                     },
                     "debug_info": {
                       "type": "object",
-                      "description": "Contains sensitive information"
+                      "description": "v1: Contains extensive sensitive information including PIN. v2: Less sensitive information, PIN not exposed."
                     }
                   }
                 }
               }
             }
+          },
+          "404": {
+            "description": "User not found"
           }
         }
       }
     },
-    "/reset-password": {
+    "/api/v{version}/reset-password": {
       "post": {
         "tags": ["authentication"],
-        "summary": "Reset password using PIN",
-        "description": "Reset password with 3-digit PIN. No rate limiting.",
+        "summary": "Reset password using PIN (versioned)",
+        "description": "Reset password with 3-digit PIN. Different versions have different levels of data exposure.",
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "description": "API version (1: full data exposure, 2: reduced data exposure)",
+            "schema": {
+              "type": "integer",
+              "enum": [1, 2],
+              "default": 2
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -216,7 +245,29 @@
         },
         "responses": {
           "200": {
-            "description": "Password reset successful"
+            "description": "Password reset successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "debug_info": {
+                      "type": "object",
+                      "description": "v1: Contains extensive debug information including used PIN. v2: Not present."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid reset PIN"
           }
         }
       }
