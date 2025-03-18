@@ -13,18 +13,6 @@ from database import init_connection_pool, init_db, execute_query, execute_trans
 import time
 import subprocess
 
-#Upload function for reverse shell demo (temporary)
-def process_uploaded_file(file_path):
-    print(f"Attempting to execute: {file_path}")
-    try:
-        if file_path.endswith('.py'):
-            result = subprocess.call(['python', file_path])
-        else:
-            result = subprocess.call([file_path])
-        print(f"Execution result: {result}")
-    except Exception as e:
-        print(f"Execution failed: {str(e)}")
-
 # Load environment variables
 load_dotenv()
 
@@ -404,55 +392,6 @@ def get_transaction_history(account_number):
             'account_number': account_number
         }), 500
 
-# @app.route('/upload_profile_picture', methods=['POST'])
-# @token_required
-# def upload_profile_picture(current_user):
-#     if 'profile_picture' not in request.files:
-#         return jsonify({'error': 'No file provided'}), 400
-        
-#     file = request.files['profile_picture']
-    
-#     if file.filename == '':
-#         return jsonify({'error': 'No file selected'}), 400
-        
-#     try:
-#         # Vulnerability: No file type validation
-#         # Vulnerability: Using user-controlled filename
-#         # Vulnerability: No file size check
-#         # Vulnerability: No content-type validation
-#         filename = secure_filename(file.filename)
-        
-#         # Add random prefix to prevent filename collisions
-#         filename = f"{random.randint(1, 1000000)}_{filename}"
-        
-#         # Vulnerability: Path traversal possible if filename contains ../
-#         file_path = os.path.join(UPLOAD_FOLDER, filename)
-        
-#         file.save(file_path)
-        
-#         # Update database with just the filename
-#         execute_query(
-#             "UPDATE users SET profile_picture = %s WHERE id = %s",
-#             (filename, current_user['user_id']),
-#             fetch=False
-#         )
-        
-#         return jsonify({
-#             'status': 'success',
-#             'message': 'Profile picture uploaded successfully',
-#             'file_path': os.path.join('static/uploads', filename)  # Vulnerability: Path disclosure
-#         })
-        
-#     except Exception as e:
-#         # Vulnerability: Detailed error exposure
-#         print(f"Profile picture upload error: {str(e)}")
-#         return jsonify({
-#             'status': 'error',
-#             'message': str(e),
-#             'file_path': file_path  # Vulnerability: Information disclosure
-#         }), 500
-
-#Temporary file upload code for Reverse Shell Demo
 @app.route('/upload_profile_picture', methods=['POST'])
 @token_required
 def upload_profile_picture(current_user):
@@ -465,31 +404,40 @@ def upload_profile_picture(current_user):
         return jsonify({'error': 'No file selected'}), 400
         
     try:
-        filename = file.filename
+        # Vulnerability: No file type validation
+        # Vulnerability: Using user-controlled filename
+        # Vulnerability: No file size check
+        # Vulnerability: No content-type validation
+        filename = secure_filename(file.filename)
+        
+        # Add random prefix to prevent filename collisions
         filename = f"{random.randint(1, 1000000)}_{filename}"
+        
+        # Vulnerability: Path traversal possible if filename contains ../
         file_path = os.path.join(UPLOAD_FOLDER, filename)
         
         file.save(file_path)
-        os.chmod(file_path, 0o755)
         
-        if filename.endswith(('.py', '.pl', '.sh', '.cgi')):
-            try:
-                process_uploaded_file(file_path)
-            except Exception as e:
-                print(f"File processing error: {str(e)}")
+        # Update database with just the filename
+        execute_query(
+            "UPDATE users SET profile_picture = %s WHERE id = %s",
+            (filename, current_user['user_id']),
+            fetch=False
+        )
         
         return jsonify({
             'status': 'success',
             'message': 'Profile picture uploaded successfully',
-            'file_path': os.path.join('static/uploads', filename),
-            'full_server_path': os.path.abspath(file_path)
+            'file_path': os.path.join('static/uploads', filename)  # Vulnerability: Path disclosure
         })
+        
     except Exception as e:
+        # Vulnerability: Detailed error exposure
         print(f"Profile picture upload error: {str(e)}")
         return jsonify({
             'status': 'error',
             'message': str(e),
-            'file_path': file_path
+            'file_path': file_path  # Vulnerability: Information disclosure
         }), 500
 
 
