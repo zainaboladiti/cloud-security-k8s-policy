@@ -1,3 +1,5 @@
+![image](https://github.com/user-attachments/assets/5880b1c0-dab7-4f0f-bf8d-95cbd4dcaf7c)
+
 # Vulnerable Bank Application 🏦
 
 A deliberately vulnerable web application for practicing application security testing, secure code review and implementing security in CI/CD pipelines.
