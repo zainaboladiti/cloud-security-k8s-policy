@@ -307,6 +307,18 @@ Contributions are welcome! Feel free to:
 - Enhance documentation
 - Fix bugs (that aren't intentional vulnerabilities)
 
+
+## 📝 Blog Write-Up
+
+A detailed walkthrough about this lab and my findings here:  
+👇 Read the Blog By [DghostNinja](https://github.com/DghostNinja)
+
+(https://dghostninja.github.io/posts/Vulnerable-Bank-API/)
+
+> Ethical hacking only. Scope respected. Coffee consumed. ☕
+
+
+
 ## Disclaimer ⚠️
 
 This application contains intentional security vulnerabilities for educational purposes. DO NOT:
