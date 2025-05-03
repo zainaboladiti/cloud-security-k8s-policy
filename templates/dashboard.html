@@ -3,370 +3,214 @@
 <head>
     <title>Dashboard - Vulnerable Bank</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <style>
-        .profile-section {
-            margin: 20px auto;
-            text-align: center;
-        }
-        .profile-picture {
-            width: 150px;
-            height: 150px;
-            border-radius: 50%;
-            object-fit: cover;
-            margin: 10px auto;
-            border: 3px solid #007bff;
-        }
-        .profile-upload {
-            margin: 10px auto;
-        }
-        .transaction-item {
-            border-bottom: 1px solid #eee;
-            padding: 10px;
-            margin: 5px 0;
-        }
-        .transaction-amount.sent {
-            color: red;
-        }
-        .transaction-amount.received {
-            color: green;
-        }
-        #message {
-            margin: 10px 0;
-            padding: 10px;
-            border-radius: 4px;
-            text-align: center;
-        }
-        .section {
-            margin: 20px 0;
-            padding: 15px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
-        th, td {
-            padding: 8px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-        th {
-            background-color: #f5f5f5;
-        }
-        .cards-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-            margin-top: 20px;
-        }
-        .virtual-card {
-            background: linear-gradient(45deg, #1a1a1a, #4a4a4a);
-            color: white;
-            padding: 20px;
-            border-radius: 10px;
-            width: 300px;
-            position: relative;
-        }
-        .virtual-card.frozen {
-            opacity: 0.7;
-        }
-        .card-number {
-            font-size: 1.2em;
-            letter-spacing: 2px;
-            margin: 10px 0;
-        }
-        .card-details {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 20px;
-        }
-        .modal {
-            position: fixed;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow-y: auto;
-            padding: 20px;
-        }
-        .modal-content {
-            background-color: white;
-            padding: 20px;
-            border-radius: 5px;
-            min-width: 300px;
-            max-width: 500px;
-            width: 100%;
-            max-height: 90vh;
-            overflow-y: auto;
-            margin: auto;
-        }
-        .card-actions {
-            margin-top: 10px;
-            display: flex;
-            gap: 10px;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-        }
-        .form-group input {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        .payments-container {
-            margin-top: 20px;
-            overflow-x: hidden;
-            overflow-y: auto;
-        }
-        .payment-item {
-            border: 1px solid #ddd;
-            padding: 15px;
-            margin-bottom: 10px;
-            border-radius: 5px;
-        }
-
-        /* Side Panel */
-        .side-panel {
-            position: fixed;
-            left: 0;
-            top: 0;
-            width: 250px;
-            height: 100vh;
-            background: linear-gradient(180deg, #1a1a1a, #2d2d2d);
-            color: white;
-            padding: 2rem 1rem;
-            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
-            overflow-y: auto;
-        }
-
-        .side-panel .nav-link {
-            display: block;
-            padding: 1rem;
-            color: white;
-            text-decoration: none;
-            border-radius: 8px;
-            margin-bottom: 0.5rem;
-            transition: background-color 0.3s, transform 0.2s;
-        }
-
-        .side-panel .nav-link:hover {
-            background-color: rgba(255, 255, 255, 0.1);
-            transform: translateX(5px);
-        }
-
-        .side-panel .nav-link.active {
-            background-color: var(--primary-color);
-        }
-
-        /* Main Content Adjustment */
-        .main-content {
-            margin-left: 250px;
-            padding: 2rem;
-            max-width: calc(1200px - 250px);
-        }
-
-        /* Smooth Scroll Behavior */
-        html {
-            scroll-behavior: smooth;
-        }
-
-        /* Bank Logo */
-        .bank-logo {
-            text-align: center;
-            margin-bottom: 2rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .bank-logo h1 {
-            color: white;
-            font-size: 1.5rem;
-            margin: 0;
-        }
-
-        /* Responsive Design */
-        @media (max-width: 768px) {
-            .side-panel {
-                width: 200px;
-            }
-            
-            .main-content {
-                margin-left: 200px;
-                padding: 1rem;
-            }
-        }
-
-        @media (max-width: 576px) {
-            .side-panel {
-                transform: translateX(-100%);
-                z-index: 1000;
-                transition: transform 0.3s;
-            }
-            
-            .side-panel.active {
-                transform: translateX(0);
-            }
-            
-            .main-content {
-                margin-left: 0;
-            }
-            
-            .menu-toggle {
-                display: block;
-                position: fixed;
-                top: 1rem;
-                left: 1rem;
-                z-index: 1001;
-                background: var(--primary-color);
-                border: none;
-                color: white;
-                padding: 0.5rem;
-                border-radius: 4px;
-            }
-        }
-
-        /* Bill payments section scrolling */
-        .bill-payments-section {
-            overflow-x: hidden;
-            overflow-y: auto;
-            max-height: calc(100vh - 100px);
-        }
-
-        /* Select dropdowns */
-        .form-group select {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            background-color: white;
-        }
-
-        .form-group select:disabled {
-            background-color: #f5f5f5;
-            cursor: not-allowed;
-        }
-
-        .section {
-            scroll-margin-top: 20px; /* Adds some space when scrolling to sections */
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
-    <!-- Add menu toggle button -->
-    <button class="menu-toggle" onclick="toggleSidePanel()" style="display: none;">☰</button>
+    <!-- Mobile menu toggle -->
+    <button class="menu-toggle" onclick="toggleSidePanel()">☰</button>
 
-    <!-- Add side panel -->
+    <!-- Side panel navigation -->
     <div class="side-panel">
         <div class="bank-logo">
             <h1>Vulnerable Bank</h1>
         </div>
         <nav>
-            <a href="#profile" class="nav-link" onclick="setActiveLink(this)">Profile</a>
-            <a href="#transfers" class="nav-link" onclick="setActiveLink(this)">Money Transfer</a>
-            <a href="#loans" class="nav-link" onclick="setActiveLink(this)">Loans</a>
-            <a href="#transactions" class="nav-link" onclick="setActiveLink(this)">Transaction History</a>
-            <a href="#virtual-cards" class="nav-link" onclick="setActiveLink(this)">Virtual Cards</a>
-            <a href="#bill-payments" class="nav-link" onclick="setActiveLink(this)">Bill Payments</a>
+            <a href="#profile" class="nav-link" onclick="setActiveLink(this)">
+                <span class="nav-link-icon">👤</span>
+                Profile
+            </a>
+            <a href="#transfers" class="nav-link" onclick="setActiveLink(this)">
+                <span class="nav-link-icon">↗️</span>
+                Money Transfer
+            </a>
+            <a href="#loans" class="nav-link" onclick="setActiveLink(this)">
+                <span class="nav-link-icon">💰</span>
+                Loans
+            </a>
+            <a href="#transactions" class="nav-link" onclick="setActiveLink(this)">
+                <span class="nav-link-icon">📊</span>
+                Transaction History
+            </a>
+            <a href="#virtual-cards" class="nav-link" onclick="setActiveLink(this)">
+                <span class="nav-link-icon">💳</span>
+                Virtual Cards
+            </a>
+            <a href="#bill-payments" class="nav-link" onclick="setActiveLink(this)">
+                <span class="nav-link-icon">📃</span>
+                Bill Payments
+            </a>
             {% if is_admin %}
-            <a href="{{ url_for('admin_panel') }}" class="nav-link">Admin Panel</a>
+            <a href="{{ url_for('admin_panel') }}" class="nav-link">
+                <span class="nav-link-icon">⚙️</span>
+                Admin Panel
+            </a>
             {% endif %}
-            <a href="#" onclick="logout()" class="nav-link">Logout</a>
+            <a href="#" onclick="logout()" class="nav-link">
+                <span class="nav-link-icon">🔒</span>
+                Logout
+            </a>
         </nav>
     </div>
 
-    <!-- Modify container to main-content -->
+    <!-- Main content area -->
     <div class="main-content">
-        <!-- Vulnerability: XSS possible in profile section -->
-        <div class="section profile-section" id="profile">
-            <h2>Profile</h2>
-            <!-- Vulnerability: Path traversal possible in profile picture -->
-            <img id="profile-picture" 
-            class="profile-picture" 
-            src="{{ url_for('static', filename='uploads/' + user.profile_picture) if user.profile_picture else url_for('static', filename='uploads/user.png') }}" 
-            alt="Profile Picture">
-            
-            <!-- Vulnerability: No file type validation -->
-            <!-- Vulnerability: No file size limits -->
-            <form id="profileUploadForm" enctype="multipart/form-data">
-                <input type="file" name="profile_picture" accept="image/*">
-                <button type="submit">Upload Profile Picture</button>
-            </form>
-            <div id="upload-message"></div>
+        <!-- Greeting section with balance card -->
+        <div class="greeting-section">
+            <div class="greeting-text">
+                <!-- Vulnerability: XSS possible in username -->
+                <h1>Welcome back, {{ username | safe }}</h1>
+                <p id="current-date"></p>
+            </div>
+            <div class="account-card">
+                <div class="account-label">Current Balance</div>
+                <!-- Vulnerability: Sensitive information exposure -->
+                <div class="account-balance" id="balance">${{ balance }}</div>
+                <div class="account-number-display">
+                    Account Number: <span id="account-number">{{ account_number }}</span>
+                </div>
+            </div>
         </div>
 
         <!-- Global message div for all notifications -->
         <div id="message"></div>
 
-        <!-- Vulnerability: XSS possible in username -->
-        <h1>Welcome, {{ username | safe }}</h1>
-        <!-- Vulnerability: Sensitive information exposure -->
-        <p>Account Number: <span id="account-number">{{ account_number }}</span></p>
-        <p>Balance: $<span id="balance">{{ balance }}</span></p>
+        <!-- Quick actions section -->
+        <div class="quick-actions">
+            <div class="action-card" onclick="document.querySelector('.nav-link[href=\'#transfers\']').click()">
+                <div class="action-icon">↗️</div>
+                <div class="action-title">Send Money</div>
+                <div class="action-description">Transfer money to another account quickly and securely.</div>
+            </div>
+            <div class="action-card" onclick="document.querySelector('.nav-link[href=\'#loans\']').click()">
+                <div class="action-icon">💰</div>
+                <div class="action-title">Request Loan</div>
+                <div class="action-description">Need funds? Apply for a loan with competitive rates.</div>
+            </div>
+            <div class="action-card" onclick="document.querySelector('.nav-link[href=\'#virtual-cards\']').click()">
+                <div class="action-icon">💳</div>
+                <div class="action-title">Virtual Cards</div>
+                <div class="action-description">Create and manage your virtual payment cards.</div>
+            </div>
+            <div class="action-card" onclick="document.querySelector('.nav-link[href=\'#bill-payments\']').click()">
+                <div class="action-icon">📃</div>
+                <div class="action-title">Pay Bills</div>
+                <div class="action-description">Pay your bills easily from your account.</div>
+            </div>
+        </div>
+
+        <!-- Profile section -->
+        <div class="dashboard-section profile-section" id="profile">
+            <div class="section-header">
+                <h2 class="section-title">Profile</h2>
+            </div>
+
+            <div class="profile-picture-wrapper">
+                <!-- Vulnerability: Path traversal possible in profile picture -->
+                <img id="profile-picture"
+                     class="profile-picture"
+                     src="{{ url_for('static', filename='uploads/' + user.profile_picture) if user.profile_picture else url_for('static', filename='uploads/user.png') }}"
+                     alt="Profile Picture">
+                <div class="profile-picture-edit" onclick="document.getElementById('profile_picture').click()">
+                        ✏️
+                </div>
+            </div>
+                        <!-- Vulnerability: No file type validation -->
+                        <!-- Vulnerability: No file size limits -->
+                     <form id="profileUploadForm" enctype="multipart/form-data">
+                        <input type="file" id="profile_picture" name="profile_picture" accept="image/*" style="display: none;" onchange="document.getElementById('profileUploadForm').requestSubmit();">
+                        <button type="button" onclick="document.getElementById('profile_picture').click()">Change Profile Picture</button>
+                    </form>
+                    <div id="upload-message" ></div>
+        </div>
         
-        <div class="section" id="transfers">
-            <h2>Money Transfer</h2>
+        <!-- Money transfer section -->
+        <div class="dashboard-section" id="transfers">
+            <div class="section-header">
+                <h2 class="section-title">Money Transfer</h2>
+            </div>
             <!-- Vulnerability: No CSRF protection -->
             <!-- Vulnerability: No amount validation -->
-            <form id="transferForm">
-                <input type="text" name="to_account" placeholder="Recipient Account Number" required>
-                <input type="number" name="amount" placeholder="Amount" step="0.01" required>
-                <input type="text" name="description" placeholder="Description (optional)">
-                <button type="submit">Transfer</button>
+            <form id="transferForm" class="form-section">
+                <div class="form-group">
+                    <label for="to_account">Recipient Account Number</label>
+                    <input type="text" id="to_account" name="to_account" placeholder="Enter recipient's account number" required>
+                </div>
+                <div class="form-group">
+                    <label for="amount">Amount</label>
+                    <input type="number" id="amount" name="amount" placeholder="Enter amount to transfer" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="description">Description (optional)</label>
+                    <textarea id="description" name="description" placeholder="Add a note about this transfer" rows="3"></textarea>
+                </div>
+                <button type="submit">Send Money</button>
             </form>
         </div>
 
-        <div class="section" id="loans">
-            <h2>Loans</h2>
+        <!-- Loan request section -->
+        <div class="dashboard-section" id="loans">
+            <div class="section-header">
+                <h2 class="section-title">Request a Loan</h2>
+            </div>
             <!-- Vulnerability: No loan amount validation -->
-            <form id="loanForm">
-                <input type="number" name="amount" placeholder="Loan Amount" step="0.01" required>
-                <button type="submit">Request Loan</button>
+            <form id="loanForm" class="form-section">
+                <div class="form-group">
+                    <label for="loan_amount">Loan Amount</label>
+                    <input type="number" id="loan_amount" name="amount" placeholder="Enter the amount you need" step="0.01" required>
+                </div>
+                <button type="submit">Submit Loan Request</button>
             </form>
+            
+            {% if loans %}
+            <div class="loans-section" style="margin-top: 2rem;">
+                <h3 style="margin-bottom: 1rem;">Your Loan Applications</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Amount</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for loan in loans %}
+                        <tr>
+                            <td>${{ loan[2] }}</td>
+                            <td>
+                                {% if loan[3] == 'pending' %}
+                                <span class="status-pending">{{ loan[3] }}</span>
+                                {% else %}
+                                <span class="status-approved">{{ loan[3] }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
         </div>
         
-        <div class="section" id="transactions">
-            <h2>Transaction History</h2>
+        <!-- Transaction history section -->
+        <div class="dashboard-section" id="transactions">
+            <div class="section-header">
+                <h2 class="section-title">Transaction History</h2>
+            </div>
             <!-- Vulnerability: No pagination for transactions -->
-            <div id="transaction-list">Loading transactions...</div>
+            <div id="transaction-list">
+                <div style="text-align: center; padding: 2rem;">
+                    <div class="loading-spinner"></div>
+                    <p>Loading transactions...</p>
+                </div>
+            </div>
         </div>
 
-        {% if loans %}
-        <div class="section loans-section">
-            <h2>Your Loans</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Amount</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for loan in loans %}
-                    <tr>
-                        <td>${{ loan[2] }}</td>
-                        <td>{{ loan[3] }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% endif %}
-
-        <!-- Add Virtual Cards Section -->
-        <div class="section virtual-cards-section">
-            <h2>Virtual Cards</h2>
-            <button onclick="showCreateCardModal()" class="button">Create New Card</button>
+        <!-- Virtual cards section -->
+        <div class="dashboard-section" id="virtual-cards">
+            <div class="section-header">
+                <h2 class="section-title">Virtual Cards</h2>
+                <button onclick="showCreateCardModal()">Create New Card</button>
+            </div>
             
             <!-- Virtual Cards List -->
             <div id="virtual-cards-list" class="cards-container">
@@ -374,856 +218,121 @@
             </div>
 
             <!-- Create Card Modal -->
-            <div id="createCardModal" class="modal" style="display: none;">
+            <div id="createCardModal" class="modal">
                 <div class="modal-content">
-                    <h3>Create Virtual Card</h3>
+                    <div class="modal-header">
+                        <h3 class="modal-title">Create Virtual Card</h3>
+                        <button class="modal-close" onclick="hideCreateCardModal()">&times;</button>
+                    </div>
                     <form id="createCardForm">
-                        <input type="number" name="card_limit" placeholder="Card Limit" step="0.01" required>
-                        <select name="card_type">
-                            <option value="standard">Standard</option>
-                            <option value="premium">Premium</option>
-                        </select>
-                        <button type="submit">Create Card</button>
-                        <button type="button" onclick="hideCreateCardModal()">Cancel</button>
+                        <div class="form-group">
+                            <label for="card_limit">Card Limit</label>
+                            <input type="number" id="card_limit" name="card_limit" placeholder="Enter card limit" step="0.01" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="card_type">Card Type</label>
+                            <select id="card_type" name="card_type" required>
+                                <option value="standard">Standard</option>
+                                <option value="premium">Premium</option>
+                            </select>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit">Create Card</button>
+                            <button type="button" onclick="hideCreateCardModal()">Cancel</button>
+                        </div>
                     </form>
                 </div>
             </div>
 
             <!-- Card Details Modal -->
-            <div id="cardDetailsModal" class="modal" style="display: none;">
+            <div id="cardDetailsModal" class="modal">
                 <div class="modal-content">
-                    <h3>Card Details</h3>
+                    <div class="modal-header">
+                        <h3 class="modal-title">Card Details</h3>
+                        <button class="modal-close" onclick="hideCardDetailsModal()">&times;</button>
+                    </div>
                     <div id="cardDetailsContent"></div>
-                    <button onclick="hideCardDetailsModal()">Close</button>
+                    <div class="modal-footer">
+                        <button onclick="hideCardDetailsModal()">Close</button>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Add after virtual cards section -->
-        <div class="section bill-payments-section">
-            <h2>Bill Payments</h2>
-            <button onclick="showPayBillModal()" class="button">Pay Bill</button>
+        <!-- Bill Payments section -->
+        <div class="dashboard-section" id="bill-payments">
+            <div class="section-header">
+                <h2 class="section-title">Bill Payments</h2>
+                <button onclick="showPayBillModal()">Pay Bill</button>
+            </div>
             
             <!-- Bill Payments History -->
             <div id="bill-payments-list" class="payments-container">
                 <!-- Payments will be populated here -->
+                <div style="text-align: center; padding: 2rem;">
+                    <div class="loading-spinner"></div>
+                    <p>Loading bill payment history...</p>
+                </div>
             </div>
 
             <!-- Pay Bill Modal -->
-            <div id="payBillModal" class="modal" style="display: none;">
+            <div id="payBillModal" class="modal">
                 <div class="modal-content">
-                    <h3>Pay Bill</h3>
+                    <div class="modal-header">
+                        <h3 class="modal-title">Pay Bill</h3>
+                        <button class="modal-close" onclick="hidePayBillModal()">&times;</button>
+                    </div>
                     <form id="payBillForm">
                         <div class="form-group">
-                            <label>Bill Category</label>
+                            <label for="billCategory">Bill Category</label>
                             <select id="billCategory" onchange="loadBillers(this.value)" required>
                                 <option value="">Select Category</option>
                             </select>
                         </div>
                         
                         <div class="form-group">
-                            <label>Biller</label>
+                            <label for="biller">Biller</label>
                             <select id="biller" name="biller_id" required disabled>
                                 <option value="">Select Biller</option>
                             </select>
                         </div>
                         
                         <div class="form-group">
-                            <label>Amount</label>
-                            <input type="number" name="amount" step="0.01" required>
+                            <label for="bill_amount">Amount</label>
+                            <input type="number" id="bill_amount" name="amount" step="0.01" required>
                         </div>
                         
                         <div class="form-group">
-                            <label>Payment Method</label>
-                            <select name="payment_method" onchange="toggleCardSelection(this.value)" required>
+                            <label for="payment_method">Payment Method</label>
+                            <select id="payment_method" name="payment_method" onchange="toggleCardSelection(this.value)" required>
                                 <option value="balance">Account Balance</option>
                                 <option value="virtual_card">Virtual Card</option>
                             </select>
                         </div>
                         
                         <div class="form-group" id="cardSelection" style="display: none;">
-                            <label>Select Card</label>
-                            <select name="card_id">
+                            <label for="card_id">Select Card</label>
+                            <select id="card_id" name="card_id">
                                 <option value="">Select Card</option>
                             </select>
                         </div>
                         
                         <div class="form-group">
-                            <label>Description (Optional)</label>
-                            <input type="text" name="description">
+                            <label for="bill_description">Description (Optional)</label>
+                            <input type="text" id="bill_description" name="description">
                         </div>
                         
-                        <button type="submit">Pay Now</button>
-                        <button type="button" onclick="hidePayBillModal()">Cancel</button>
+                        <div class="modal-footer">
+                            <button type="submit">Pay Now</button>
+                            <button type="button" onclick="hidePayBillModal()">Cancel</button>
+                        </div>
                     </form>
                 </div>
             </div>
         </div>
-
-        {% if is_admin %}
-        <a href="{{ url_for('admin_panel') }}" class="button">Admin Panel</a>
-        {% endif %}
     </div>
 
-    <script>
-        // Vulnerability: Token stored in localStorage
-        document.addEventListener('DOMContentLoaded', function() {
-            const token = localStorage.getItem('jwt_token');
-            if (!token) {
-                window.location.href = '/login';
-                return;
-            }
-
-            fetchTransactions();
-
-            // Add event listeners
-            document.getElementById('transferForm').addEventListener('submit', handleTransfer);
-            document.getElementById('loanForm').addEventListener('submit', handleLoanRequest);
-            document.getElementById('profileUploadForm').addEventListener('submit', handleProfileUpload);
-            
-            // Add virtual cards event listener
-            document.getElementById('createCardForm').addEventListener('submit', handleCreateCard);
-            
-            // Load virtual cards
-            fetchVirtualCards();
-
-            // Add bill payment functions
-            document.getElementById('payBillForm').addEventListener('submit', handleBillPayment);
-            
-            // Load initial data
-            loadBillCategories();
-            loadPaymentHistory();
-
-            // Ensure all sections have proper IDs
-            const sectionMap = {
-                'Profile': 'profile',
-                'Money Transfer': 'transfers',
-                'Loans': 'loans',
-                'Transaction History': 'transactions',
-                'Virtual Cards': 'virtual-cards',
-                'Bill Payments': 'bill-payments'
-            };
-
-            const sections = document.querySelectorAll('.section');
-            sections.forEach(section => {
-                const heading = section.querySelector('h2');
-                if (heading && sectionMap[heading.textContent]) {
-                    section.id = sectionMap[heading.textContent];
-                }
-            });
-
-            // Add smooth scrolling behavior
-            document.querySelectorAll('.nav-link').forEach(link => {
-                link.addEventListener('click', function(e) {
-                    if (this.getAttribute('href').startsWith('#')) {
-                        e.preventDefault();
-                        const targetId = this.getAttribute('href').substring(1);
-                        const targetElement = document.getElementById(targetId);
-                        if (targetElement) {
-                            targetElement.scrollIntoView({ behavior: 'smooth' });
-                        }
-                    }
-                });
-            });
-
-            // Handle scroll spy
-            const observerOptions = {
-                root: null,
-                rootMargin: '0px',
-                threshold: 0.5
-            };
-
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        const id = entry.target.id;
-                        const link = document.querySelector(`.nav-link[href="#${id}"]`);
-                        if (link) {
-                            setActiveLink(link);
-                        }
-                    }
-                });
-            }, observerOptions);
-
-            // Observe all sections
-            document.querySelectorAll('.section, .profile-section').forEach(section => {
-                if (section.id) {
-                    observer.observe(section);
-                }
-            });
-
-            // Show/hide menu toggle based on screen size
-            function handleResize() {
-                const menuToggle = document.querySelector('.menu-toggle');
-                if (window.innerWidth <= 576) {
-                    menuToggle.style.display = 'block';
-                } else {
-                    menuToggle.style.display = 'none';
-                    // Ensure side panel is visible on larger screens
-                    document.querySelector('.side-panel').classList.remove('active');
-                }
-            }
-
-            // Initial check and add resize listener
-            handleResize();
-            window.addEventListener('resize', handleResize);
-        });
-
-        async function handleTransfer(event) {
-            event.preventDefault();
-            const formData = new FormData(event.target);
-            const jsonData = {};
-            formData.forEach((value, key) => jsonData[key] = value);
-
-            try {
-                const response = await fetch('/transfer', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': 'Bearer ' + localStorage.getItem('jwt_token'),
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(jsonData)
-                });
-
-                const data = await response.json();
-                if (data.status === 'success') {
-                    // Update message and balance
-                    document.getElementById('message').innerHTML = data.message;
-                    document.getElementById('message').style.color = 'green';
-                    document.getElementById('balance').textContent = data.new_balance;
-                    
-                    // Refresh transactions
-                    fetchTransactions();
-                    
-                    // Clear form
-                    event.target.reset();
-                } else {
-                    document.getElementById('message').innerHTML = data.message;
-                    document.getElementById('message').style.color = 'red';
-                }
-            } catch (error) {
-                document.getElementById('message').innerHTML = 'Transfer failed';
-                document.getElementById('message').style.color = 'red';
-            }
-        }
-
-        async function handleLoanRequest(event) {
-            event.preventDefault();
-            const formData = new FormData(event.target);
-            const jsonData = {};
-            formData.forEach((value, key) => jsonData[key] = value);
-
-            try {
-                const response = await fetch('/request_loan', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': 'Bearer ' + localStorage.getItem('jwt_token'),
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(jsonData)
-                });
-
-                const data = await response.json();
-                if (data.status === 'success') {
-                    document.getElementById('message').innerHTML = 'Loan requested successfully, our staff will review and approve!';
-                    document.getElementById('message').style.color = 'green';
-                    
-                    // Check if loans section exists, if not create it
-                    let loansSection = document.querySelector('.loans-section');
-                    if (!loansSection) {
-                        // Create new loans section
-                        loansSection = document.createElement('div');
-                        loansSection.className = 'section loans-section';
-                        loansSection.innerHTML = `
-                            <h2>Your Loans</h2>
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Amount</th>
-                                        <th>Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody></tbody>
-                            </table>
-                        `;
-                        // Add it before the admin panel button or logout button
-                        const container = document.querySelector('.container');
-                        const adminButton = document.querySelector('a.button') || document.querySelector('button.button');
-                        container.insertBefore(loansSection, adminButton);
-                    }
-                    
-                    // Add new loan to the table
-                    const loansTableBody = loansSection.querySelector('tbody');
-                    const newRow = document.createElement('tr');
-                    newRow.innerHTML = `
-                        <td>$${jsonData.amount}</td>
-                        <td>pending</td>
-                    `;
-                    loansTableBody.appendChild(newRow);
-                    
-                    // Clear form
-                    event.target.reset();
-                } else {
-                    document.getElementById('message').innerHTML = data.message;
-                    document.getElementById('message').style.color = 'red';
-                }
-            } catch (error) {
-                document.getElementById('message').innerHTML = 'Loan request failed';
-                document.getElementById('message').style.color = 'red';
-            }
-        }
-
-        async function handleProfileUpload(event) {
-            event.preventDefault();
-            const formData = new FormData(event.target);
-
-            try {
-                const response = await fetch('/upload_profile_picture', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': 'Bearer ' + localStorage.getItem('jwt_token')
-                    },
-                    body: formData
-                });
-
-                const data = await response.json();
-                if (data.status === 'success') {
-                    // Vulnerability: No sanitization of file_path
-                    document.getElementById('profile-picture').src = '/' + data.file_path;
-                    document.getElementById('upload-message').innerHTML = 'Upload successful!';
-                    document.getElementById('upload-message').style.color = 'green';
-                    event.target.reset();
-                } else {
-                    document.getElementById('upload-message').innerHTML = data.message;
-                    document.getElementById('upload-message').style.color = 'red';
-                }
-            } catch (error) {
-                document.getElementById('upload-message').innerHTML = 'Upload failed';
-                document.getElementById('upload-message').style.color = 'red';
-            }
-        }
-
-        // Vulnerability: No rate limiting on transaction fetches
-        async function fetchTransactions() {
-            try {
-                const accountNumber = document.getElementById('account-number').textContent;
-                const response = await fetch(`/transactions/${accountNumber}`, {
-                    headers: {
-                        'Authorization': 'Bearer ' + localStorage.getItem('jwt_token')
-                    }
-                });
-
-                const data = await response.json();
-                if (data.status === 'success') {
-                    // Vulnerability: innerHTML used with unsanitized data
-                    const transactionHtml = data.transactions.map(t => `
-                        <div class="transaction-item">
-                            <div class="transaction-amount ${t.from_account === accountNumber ? 'sent' : 'received'}">
-                                ${t.from_account === accountNumber ? '-' : '+'}$${Math.abs(t.amount)}
-                            </div>
-                            <div class="transaction-details">
-                                ${t.from_account === accountNumber ? 'To: ' + t.to_account : 'From: ' + t.from_account}
-                                <br>
-                                <small>${t.timestamp}</small>
-                                <br>
-                                <small>${t.description || 'No description'}</small>
-                            </div>
-                        </div>
-                    `).join('');
-                    
-                    document.getElementById('transaction-list').innerHTML = 
-                        transactionHtml || 'No transactions found';
-                }
-            } catch (error) {
-                document.getElementById('transaction-list').innerHTML = 
-                    'Error loading transactions';
-            }
-        }
-
-        // Virtual Cards Management
-        let virtualCards = [];
-
-        async function fetchVirtualCards() {
-            try {
-                const response = await fetch('/api/virtual-cards', {
-                    headers: {
-                        'Authorization': 'Bearer ' + localStorage.getItem('jwt_token')
-                    }
-                });
-
-                const data = await response.json();
-                if (data.status === 'success') {
-                    virtualCards = data.cards;
-                    renderVirtualCards();
-                }
-            } catch (error) {
-                console.error('Error fetching virtual cards:', error);
-            }
-        }
-
-        function renderVirtualCards() {
-            const container = document.getElementById('virtual-cards-list');
-            // Vulnerability: XSS possible in card rendering
-            container.innerHTML = virtualCards.map(card => `
-                <div class="virtual-card ${card.is_frozen ? 'frozen' : ''}" id="card-${card.id}">
-                    <div class="card-type">${card.card_type.toUpperCase()}</div>
-                    <div class="card-number">${formatCardNumber(card.card_number)}</div>
-                    <div class="card-details">
-                        <div>Exp: ${card.expiry_date}</div>
-                        <div>CVV: ${card.cvv}</div>
-                    </div>
-                    <div>Limit: $${card.limit}</div>
-                    <div>Balance: $${card.balance}</div>
-                    <div class="card-actions">
-                        <button onclick="toggleCardFreeze(${card.id})">${card.is_frozen ? 'Unfreeze' : 'Freeze'}</button>
-                        <button onclick="showCardDetails(${card.id})">Details</button>
-                        <button onclick="showTransactionHistory(${card.id})">History</button>
-                        <button onclick="showUpdateLimit(${card.id})">Update Limit</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function formatCardNumber(number) {
-            return number.match(/.{1,4}/g).join(' ');
-        }
-
-        async function handleCreateCard(event) {
-            event.preventDefault();
-            const formData = new FormData(event.target);
-            const jsonData = {};
-            formData.forEach((value, key) => jsonData[key] = value);
-
-            try {
-                const response = await fetch('/api/virtual-cards/create', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': 'Bearer ' + localStorage.getItem('jwt_token'),
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(jsonData)
-                });
-
-                const data = await response.json();
-                if (data.status === 'success') {
-                    hideCreateCardModal();
-                    await fetchVirtualCards();
-                    
-                    document.getElementById('message').innerHTML = 'Virtual card created successfully!';
-                    document.getElementById('message').style.color = 'green';
-                } else {
-                    document.getElementById('message').innerHTML = data.message;
-                    document.getElementById('message').style.color = 'red';
-                }
-            } catch (error) {
-                console.error('Error creating virtual card:', error);
-                document.getElementById('message').innerHTML = 'Failed to create virtual card';
-                document.getElementById('message').style.color = 'red';
-            }
-        }
-
-        async function toggleCardFreeze(cardId) {
-            try {
-                const response = await fetch(`/api/virtual-cards/${cardId}/toggle-freeze`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': 'Bearer ' + localStorage.getItem('jwt_token')
-                    }
-                });
-
-                const data = await response.json();
-                if (data.status === 'success') {
-                    await fetchVirtualCards();
-                } else {
-                    document.getElementById('message').innerHTML = data.message;
-                    document.getElementById('message').style.color = 'red';
-                }
-            } catch (error) {
-                console.error('Error toggling card freeze:', error);
-            }
-        }
-
-        async function showCardDetails(cardId) {
-            const card = virtualCards.find(c => c.id === cardId);
-            if (!card) return;
-
-            const modal = document.getElementById('cardDetailsModal');
-            const content = document.getElementById('cardDetailsContent');
-            
-            content.innerHTML = `
-                <div class="card-detail-item">
-                    <strong>Card Number:</strong> ${formatCardNumber(card.card_number)}
-                </div>
-                <div class="card-detail-item">
-                    <strong>CVV:</strong> ${card.cvv}
-                </div>
-                <div class="card-detail-item">
-                    <strong>Expiry Date:</strong> ${card.expiry_date}
-                </div>
-                <div class="card-detail-item">
-                    <strong>Card Type:</strong> ${card.card_type}
-                </div>
-                <div class="card-detail-item">
-                    <strong>Current Limit:</strong> ${card.limit}
-                </div>
-                <div class="card-detail-item">
-                    <strong>Current Balance:</strong> ${card.balance}
-                </div>
-                <div class="card-detail-item">
-                    <strong>Status:</strong> ${card.is_frozen ? 'Frozen' : 'Active'}
-                </div>
-                <div class="card-detail-item">
-                    <strong>Created:</strong> ${new Date(card.created_at).toLocaleDateString()}
-                </div>
-            `;
-            
-            modal.style.display = 'flex';
-        }
-
-        async function showTransactionHistory(cardId) {
-            try {
-                const response = await fetch(`/api/virtual-cards/${cardId}/transactions`, {
-                    headers: {
-                        'Authorization': 'Bearer ' + localStorage.getItem('jwt_token')
-                    }
-                });
-
-                const data = await response.json();
-                if (data.status === 'success') {
-                    const modal = document.getElementById('cardDetailsModal');
-                    const content = document.getElementById('cardDetailsContent');
-                    
-                    content.innerHTML = `
-                        <h4>Transaction History</h4>
-                        <div class="transaction-list">
-                            ${data.transactions.map(t => `
-                                <div class="transaction-item">
-                                    <div class="transaction-amount">${t.amount}</div>
-                                    <div class="transaction-merchant">${t.merchant}</div>
-                                    <div class="transaction-date">${new Date(t.timestamp).toLocaleString()}</div>
-                                    <div class="transaction-status">${t.status}</div>
-                                </div>
-                            `).join('') || 'No transactions found'}
-                        </div>
-                    `;
-                    
-                    modal.style.display = 'flex';
-                }
-            } catch (error) {
-                console.error('Error fetching transaction history:', error);
-            }
-        }
-
-        async function showUpdateLimit(cardId) {
-            const card = virtualCards.find(c => c.id === cardId);
-            if (!card) return;
-
-            // Show a form with multiple fields including hidden ones that shouldn't be editable
-            const modal = document.getElementById('cardDetailsModal');
-            const content = document.getElementById('cardDetailsContent');
-            
-            // Vulnerability: Exposing form that allows updating any field
-            content.innerHTML = `
-                <h4>Update Card Limit</h4>
-                <form id="updateCardForm" onsubmit="return handleCardUpdate(event, ${cardId})">
-                    <div class="form-group">
-                        <label>Card Limit</label>
-                        <input type="number" name="card_limit" value="${card.limit}" step="0.01" required>
-                    </div>
-                    <button type="submit">Update Limit</button>
-                    <button type="button" onclick="hideCardDetailsModal()">Cancel</button>
-                </form>
-            `;
-            
-            modal.style.display = 'flex';
-        }
-
-        // Add new handleCardUpdate function
-        async function handleCardUpdate(event, cardId) {
-            event.preventDefault();
-            const formData = new FormData(event.target);
-            
-            // Only send card_limit from UI
-            const jsonData = {
-                card_limit: parseFloat(formData.get('card_limit'))
-            };
-
-            try {
-                // Vulnerability: Sending all form data including sensitive fields
-                const response = await fetch(`/api/virtual-cards/${cardId}/update-limit`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': 'Bearer ' + localStorage.getItem('jwt_token'),
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(jsonData)
-                });
-
-                const data = await response.json();
-                if (data.status === 'success') {
-                    await fetchVirtualCards();
-                    hideCardDetailsModal();
-                    document.getElementById('message').innerHTML = 'Card limit updated successfully';
-                    document.getElementById('message').style.color = 'green';
-                } else {
-                    document.getElementById('message').innerHTML = data.message;
-                    document.getElementById('message').style.color = 'red';
-                }
-            } catch (error) {
-                console.error('Error updating card limit:', error);
-            }
-        }
-
-        function showCreateCardModal() {
-            document.getElementById('createCardModal').style.display = 'flex';
-        }
-
-        function hideCreateCardModal() {
-            document.getElementById('createCardModal').style.display = 'none';
-        }
-
-        function hideCardDetailsModal() {
-            document.getElementById('cardDetailsModal').style.display = 'none';
-        }
-
-        // Vulnerability: No server-side token invalidation
-        function logout() {
-            localStorage.removeItem('jwt_token');
-            window.location.href = '/login';
-        }
-
-        // Load bill categories
-        async function loadBillCategories() {
-            try {
-                const response = await fetch('/api/bill-categories');
-                const data = await response.json();
-                
-                if (data.status === 'success') {
-                    const select = document.getElementById('billCategory');
-                    // Vulnerability: XSS possible in category name and description
-                    select.innerHTML = `
-                        <option value="">Select Category</option>
-                        ${data.categories.map(cat => `
-                            <option value="${cat.id}">${cat.name}</option>
-                        `).join('')}
-                    `;
-                }
-            } catch (error) {
-                console.error('Error loading bill categories:', error);
-            }
-        }
-
-        function showPayBillModal() {
-            document.getElementById('payBillModal').style.display = 'flex';
-        }
-
-        function hidePayBillModal() {
-            document.getElementById('payBillModal').style.display = 'none';
-            document.getElementById('payBillForm').reset();
-            document.getElementById('biller').disabled = true;
-            document.getElementById('cardSelection').style.display = 'none';
-        }
-
-        // Load billers for selected category
-        async function loadBillers(categoryId) {
-            if (!categoryId) {
-                const select = document.getElementById('biller');
-                select.innerHTML = '<option value="">Select Biller</option>';
-                select.disabled = true;
-                return;
-            }
-            
-            try {
-                const response = await fetch(`/api/billers/by-category/${categoryId}`);
-                const data = await response.json();
-                
-                const select = document.getElementById('biller');
-                if (data.status === 'success') {
-                    // Create a Map to store unique billers by name
-                    const billerMap = new Map();
-                    
-                    // Only keep the first occurrence of each biller name
-                    data.billers.forEach(biller => {
-                        if (!billerMap.has(biller.name)) {
-                            billerMap.set(biller.name, biller);
-                        }
-                    });
-
-                    // Convert Map values back to array
-                    const uniqueBillers = Array.from(billerMap.values());
-
-                    // Sort billers by name for consistency
-                    uniqueBillers.sort((a, b) => a.name.localeCompare(b.name));
-
-                    select.innerHTML = `
-                        <option value="">Select Biller</option>
-                        ${uniqueBillers.map(biller => `
-                            <option value="${biller.id}" 
-                                    data-min="${biller.minimum_amount}"
-                                    data-max="${biller.maximum_amount || ''}"
-                            >${biller.name}</option>
-                        `).join('')}
-                    `;
-                    select.disabled = false;
-                } else {
-                    select.innerHTML = '<option value="">No billers available</option>';
-                    select.disabled = true;
-                }
-            } catch (error) {
-                console.error('Error loading billers:', error);
-                const select = document.getElementById('biller');
-                select.innerHTML = '<option value="">Error loading billers</option>';
-                select.disabled = true;
-            }
-        }
-
-        // Toggle card selection based on payment method
-        function toggleCardSelection(method) {
-            const cardSelection = document.getElementById('cardSelection');
-            if (method === 'virtual_card') {
-                cardSelection.style.display = 'block';
-                loadVirtualCardsForPayment();  // Load the cards
-            } else {
-                cardSelection.style.display = 'none';
-            }
-        }
-
-        // Handle bill payment submission
-        async function handleBillPayment(event) {
-            event.preventDefault();
-            const formData = new FormData(event.target);
-            const jsonData = {
-                biller_id: parseInt(formData.get('biller_id')),
-                amount: parseFloat(formData.get('amount')),
-                payment_method: formData.get('payment_method'),
-                description: formData.get('description') || 'Bill Payment'
-            };
-            
-            if (jsonData.payment_method === 'virtual_card') {
-                jsonData.card_id = parseInt(formData.get('card_id'));
-            }
-
-            try {
-                const response = await fetch('/api/bill-payments/create', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': 'Bearer ' + localStorage.getItem('jwt_token'),
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(jsonData)
-                });
-
-                const data = await response.json();
-                if (data.status === 'success') {
-                    hidePayBillModal();
-                    document.getElementById('message').innerHTML = 'Bill payment successful!';
-                    document.getElementById('message').style.color = 'green';
-                    await loadPaymentHistory();
-                    
-                    // Refresh balances if necessary
-                    if (jsonData.payment_method === 'virtual_card') {
-                        await fetchVirtualCards();
-                    } else {
-                        // Update account balance
-                        const balanceElement = document.getElementById('balance');
-                        const currentBalance = parseFloat(balanceElement.textContent);
-                        balanceElement.textContent = (currentBalance - jsonData.amount).toFixed(2);
-                    }
-                } else {
-                    document.getElementById('message').innerHTML = data.message;
-                    document.getElementById('message').style.color = 'red';
-                }
-            } catch (error) {
-                console.error('Error processing payment:', error);
-                document.getElementById('message').innerHTML = 'Payment failed';
-                document.getElementById('message').style.color = 'red';
-            }
-        }
-
-        // Load payment history
-        async function loadPaymentHistory() {
-            try {
-                const response = await fetch('/api/bill-payments/history', {
-                    headers: {
-                        'Authorization': 'Bearer ' + localStorage.getItem('jwt_token')
-                    }
-                });
-
-                const data = await response.json();
-                if (data.status === 'success') {
-                    const container = document.getElementById('bill-payments-list');
-                    if (data.payments.length === 0) {
-                        container.innerHTML = '<p>No bill payments found</p>';
-                        return;
-                    }
-
-                    // Vulnerability: XSS possible in payment details
-                    container.innerHTML = data.payments.map(payment => `
-                        <div class="payment-item">
-                            <div class="payment-header">
-                                <div class="payment-amount">$${payment.amount}</div>
-                                <div class="payment-status">${payment.status}</div>
-                            </div>
-                            <div class="payment-details">
-                                <div>Biller: ${payment.biller_name}</div>
-                                <div>Category: ${payment.category_name}</div>
-                                <div>Payment Method: ${payment.payment_method}
-                                    ${payment.card_number ? ` (Card ending in ${payment.card_number.slice(-4)})` : ''}
-                                </div>
-                                <div>Reference: ${payment.reference}</div>
-                                <div>Date: ${new Date(payment.created_at).toLocaleString()}</div>
-                                ${payment.description ? `<div>Description: ${payment.description}</div>` : ''}
-                            </div>
-                        </div>
-                    `).join('');
-                }
-            } catch (error) {
-                console.error('Error loading payment history:', error);
-            }
-        }
-
-        // Add navigation functions
-        function setActiveLink(element) {
-            // Remove active class from all links
-            document.querySelectorAll('.nav-link').forEach(link => {
-                link.classList.remove('active');
-            });
-            
-            // Add active class to clicked link
-            element.classList.add('active');
-        }
-
-        function toggleSidePanel() {
-            document.querySelector('.side-panel').classList.toggle('active');
-        }
-
-        // Function to load virtual cards for payment selection
-        async function loadVirtualCardsForPayment() {
-            try {
-                const response = await fetch('/api/virtual-cards', {
-                    headers: {
-                        'Authorization': 'Bearer ' + localStorage.getItem('jwt_token')
-                    }
-                });
-
-                const data = await response.json();
-                if (data.status === 'success') {
-                    const select = document.querySelector('select[name="card_id"]');
-                    // Only show non-frozen cards with available balance
-                    select.innerHTML = `
-                        <option value="">Select Card</option>
-                        ${data.cards.filter(card => !card.is_frozen).map(card => `
-                            <option value="${card.id}">
-                                Card ending in ${card.card_number.slice(-4)} 
-                                (Balance: $${card.balance})
-                            </option>
-                        `).join('')}
-                    `;
-                }
-            } catch (error) {
-                console.error('Error loading virtual cards:', error);
-            }
-        }
-    </script>
+    <!-- Include the dashboard JavaScript file -->
+    <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
 </body>
 </html>

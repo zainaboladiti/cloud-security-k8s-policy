@@ -3,25 +3,12 @@
 <head>
     <title>Login - Vulnerable Bank</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <style>
-        .links {
-            margin-top: 20px;
-            text-align: center;
-        }
-        .links a {
-            display: inline-block;
-            margin: 5px 0;
-            color: #007bff;
-            text-decoration: none;
-        }
-        .links a:hover {
-            text-decoration: underline;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='auth.css') }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
     <div class="container">
-        <h1>Login</h1>
+        <h1>Welcome Back</h1>
         <div id="message"></div>
         <!-- Vulnerability: No CSRF protection -->
         <!-- Vulnerability: No rate limiting -->
@@ -40,37 +27,41 @@
     <script>
         // Vulnerability: Token stored in localStorage
         // Vulnerability: No XSS protection
-        document.getElementById('loginForm').addEventListener('submit', async (event) => {
-            event.preventDefault();
-            
-            const formData = new FormData(event.target);
-            const jsonData = {};
-            formData.forEach((value, key) => jsonData[key] = value);
-            
-            try {
-                const response = await fetch('/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(jsonData)
-                });
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('loginForm').addEventListener('submit', async (event) => {
+                event.preventDefault();
                 
-                const data = await response.json();
+                const formData = new FormData(event.target);
+                const jsonData = {};
+                formData.forEach((value, key) => jsonData[key] = value);
                 
-                if (data.status === 'success' && data.token) {
-                    // Vulnerability: Token stored in localStorage (intentionally vulnerable)
-                    localStorage.setItem('jwt_token', data.token);
-                    window.location.href = '/dashboard';
-                } else {
-                    // Vulnerability: innerHTML used instead of textContent
-                    document.getElementById('message').innerHTML = data.message || 'Login failed';
+                try {
+                    const response = await fetch('/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(jsonData)
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.status === 'success' && data.token) {
+                        // Vulnerability: Token stored in localStorage (intentionally vulnerable)
+                        localStorage.setItem('jwt_token', data.token);
+                        window.location.href = '/dashboard';
+                    } else {
+                        // Vulnerability: innerHTML used instead of textContent
+                        document.getElementById('message').innerHTML = data.message || 'Login failed';
+                        document.getElementById('message').style.color = 'red';
+                        document.getElementById('message').className = 'error';
+                    }
+                } catch (error) {
+                    document.getElementById('message').innerHTML = 'Login failed. Please try again.';
                     document.getElementById('message').style.color = 'red';
+                    document.getElementById('message').className = 'error';
                 }
-            } catch (error) {
-                document.getElementById('message').innerHTML = 'Login failed. Please try again.';
-                document.getElementById('message').style.color = 'red';
-            }
+            });
         });
     </script>
 </body>

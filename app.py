@@ -10,8 +10,7 @@ from werkzeug.utils import secure_filename
 from flask_swagger_ui import get_swaggerui_blueprint
 from flask_cors import CORS
 from database import init_connection_pool, init_db, execute_query, execute_transaction
-import time
-import subprocess
+import time  # Add this import at the top
 
 # Load environment variables
 load_dotenv()
@@ -442,7 +441,6 @@ def upload_profile_picture(current_user):
             'file_path': file_path  # Vulnerability: Information disclosure
         }), 500
 
-
 # Loan request endpoint
 @app.route('/request_loan', methods=['POST'])
 @token_required
@@ -713,16 +711,10 @@ def reset_password():
             
     return render_template('reset_password.html')
 
-@app.route('/api/v<int:version>/forgot-password', methods=['POST'])
-def api_versioned_forgot_password(version):
+# V1 API - Maintains all current vulnerabilities
+@app.route('/api/v1/forgot-password', methods=['POST'])
+def api_v1_forgot_password():
     try:
-        # Validate version parameter
-        if version not in [1, 2]:
-            return jsonify({
-                'status': 'error',
-                'message': f'Invalid API version: {version}. Valid versions are 1 or 2.'
-            }), 400
-            
         data = request.get_json()
         username = data.get('username')
         
@@ -743,34 +735,19 @@ def api_versioned_forgot_password(version):
                 fetch=False
             )
             
-            # Version-specific responses
-            if version == 1:
-                # v1: Full vulnerability with information disclosure
-                return jsonify({
-                    'status': 'success',
-                    'message': 'Reset PIN has been sent to your email.',
-                    'debug_info': {  # Vulnerability: Information disclosure
-                        'timestamp': str(datetime.now()),
-                        'username': username,
-                        'pin_length': len(reset_pin),
-                        'pin': reset_pin,  # Intentionally exposing pin for learning
-                        'api_version': 'v1'
-                    }
-                })
-            else:  # version == 2
-                # v2: Reduced data exposure
-                return jsonify({
-                    'status': 'success',
-                    'message': 'Reset PIN has been sent to your email.',
-                    'debug_info': {  # Still excessive data exposure but not PIN
-                        'timestamp': str(datetime.now()),
-                        'username': username,
-                        'api_version': 'v2'
-                        # PIN and PIN length removed
-                    }
-                })
+            # Vulnerability: Information disclosure
+            return jsonify({
+                'status': 'success',
+                'message': 'Reset PIN has been sent to your email.',
+                'debug_info': {  # Vulnerability: Information disclosure
+                    'timestamp': str(datetime.now()),
+                    'username': username,
+                    'pin_length': len(reset_pin),
+                    'pin': reset_pin  # Intentionally exposing pin for learning
+                }
+            })
         else:
-            # Vulnerability: Username enumeration still possible
+            # Vulnerability: Username enumeration
             return jsonify({
                 'status': 'error',
                 'message': 'User not found'
@@ -784,17 +761,58 @@ def api_versioned_forgot_password(version):
             'message': str(e)
         }), 500
 
-# Parameterized version API for reset password
-@app.route('/api/v<int:version>/reset-password', methods=['POST'])
-def api_versioned_reset_password(version):
+# V2 API - Fixes excessive data exposure but still vulnerable to other issues
+@app.route('/api/v2/forgot-password', methods=['POST'])
+def api_v2_forgot_password():
     try:
-        # Validate version parameter
-        if version not in [1, 2]:
+        data = request.get_json()
+        username = data.get('username')
+        
+        # Vulnerability: SQL Injection still possible
+        user = execute_query(
+            f"SELECT id FROM users WHERE username='{username}'"
+        )
+        
+        if user:
+            # Weak reset pin logic (CWE-330) - still using 3 digits
+            reset_pin = str(random.randint(100, 999))
+            
+            # Store the reset PIN in database (in plaintext - CWE-319)
+            execute_query(
+                "UPDATE users SET reset_pin = %s WHERE username = %s",
+                (reset_pin, username),
+                fetch=False
+            )
+            
+            # Fixed: No longer exposing PIN and PIN length in response
+            return jsonify({
+                'status': 'success',
+                'message': 'Reset PIN has been sent to your email.',
+                'debug_info': {  # Still excessive data exposure but not PIN
+                    'timestamp': str(datetime.now()),
+                    'username': username
+                    # PIN and PIN length removed
+                }
+            })
+        else:
+            # Vulnerability: Username enumeration still possible
             return jsonify({
                 'status': 'error',
-                'message': f'Invalid API version: {version}. Valid versions are 1 or 2.'
-            }), 400
-            
+                'message': 'User not found'
+            }), 404
+                
+    except Exception as e:
+        # Vulnerability: Detailed error exposure still exists
+        print(f"Forgot password error: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+# V1 API for reset password
+@app.route('/api/v1/reset-password', methods=['POST'])
+def api_v1_reset_password():
+    try:
         data = request.get_json()
         username = data.get('username')
         reset_pin = data.get('reset_pin')
@@ -816,67 +834,85 @@ def api_versioned_reset_password(version):
                 fetch=False
             )
             
-            # Version-specific responses
-            if version == 1:
-                # v1: Full debug info
-                return jsonify({
-                    'status': 'success',
-                    'message': 'Password has been reset successfully',
-                    'debug_info': {  # Additional debug info for v1
-                        'timestamp': str(datetime.now()),
-                        'username': username,
-                        'reset_success': True,
-                        'reset_pin_used': reset_pin,  # Intentionally exposing used pin
-                        'api_version': 'v1'
-                    }
-                })
-            else:  # version == 2
-                # v2: Reduced data exposure
-                return jsonify({
-                    'status': 'success',
-                    'message': 'Password has been reset successfully'
-                    # Debug info removed in v2
-                })
+            return jsonify({
+                'status': 'success',
+                'message': 'Password has been reset successfully',
+                'debug_info': {  # Additional debug info for v1
+                    'timestamp': str(datetime.now()),
+                    'username': username,
+                    'reset_success': True,
+                    'reset_pin_used': reset_pin  # Intentionally exposing used pin
+                }
+            })
         else:
-            # Version-specific error responses
-            if version == 1:
-                # v1: Verbose error with debug info
-                return jsonify({
-                    'status': 'error',
-                    'message': 'Invalid reset PIN',
-                    'debug_info': {  # Additional debug info for v1
-                        'timestamp': str(datetime.now()),
-                        'username': username,
-                        'reset_success': False,
-                        'attempted_pin': reset_pin,  # Exposing attempted pin
-                        'api_version': 'v1'
-                    }
-                }), 400
-            else:  # version == 2
-                # v2: Less verbose error
-                return jsonify({
-                    'status': 'error',
-                    'message': 'Invalid reset PIN'
-                    # Debug info removed in v2
-                }), 400
+            # Vulnerability: Username enumeration possible
+            return jsonify({
+                'status': 'error',
+                'message': 'Invalid reset PIN',
+                'debug_info': {  # Additional debug info for v1
+                    'timestamp': str(datetime.now()),
+                    'username': username,
+                    'reset_success': False,
+                    'attempted_pin': reset_pin  # Exposing attempted pin
+                }
+            }), 400
                 
     except Exception as e:
-        # Version-specific exception handling
+        # Vulnerability: Detailed error exposure
         print(f"Reset password error: {str(e)}")
-        if version == 1:
-            # v1: Expose error details
+        return jsonify({
+            'status': 'error',
+            'message': 'Password reset failed',
+            'error': str(e)
+        }), 500
+
+# V2 API for reset password
+@app.route('/api/v2/reset-password', methods=['POST'])
+def api_v2_reset_password():
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        reset_pin = data.get('reset_pin')
+        new_password = data.get('new_password')
+        
+        # Vulnerability: No rate limiting on PIN attempts
+        # Vulnerability: Timing attack possible in PIN verification
+        user = execute_query(
+            "SELECT id FROM users WHERE username = %s AND reset_pin = %s",
+            (username, reset_pin)
+        )
+        
+        if user:
+            # Vulnerability: No password complexity requirements
+            # Vulnerability: No password history check
+            execute_query(
+                "UPDATE users SET password = %s, reset_pin = NULL WHERE username = %s",
+                (new_password, username),
+                fetch=False
+            )
+            
+            # Fixed: Less excessive data exposure
+            return jsonify({
+                'status': 'success',
+                'message': 'Password has been reset successfully'
+                # Debug info removed in v2
+            })
+        else:
+            # Vulnerability: Username enumeration still possible
             return jsonify({
                 'status': 'error',
-                'message': 'Password reset failed',
-                'error': str(e)
-            }), 500
-        else:  # version == 2
-            # v2: Hide detailed error
-            return jsonify({
-                'status': 'error',
-                'message': 'Password reset failed'
-                # Detailed error removed in v2
-            }), 500
+                'message': 'Invalid reset PIN'
+                # Debug info removed in v2
+            }), 400
+                
+    except Exception as e:
+        # Vulnerability: Still exposing error details but less verbose
+        print(f"Reset password error: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': 'Password reset failed'
+            # Detailed error removed in v2
+        }), 500
 
 @app.route('/api/transactions', methods=['GET'])
 @token_required

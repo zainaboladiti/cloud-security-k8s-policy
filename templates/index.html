@@ -3,15 +3,294 @@
 <head>
     <title>Vulnerable Bank</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+            height: 100vh;
+            color: #343a40;
+        }
+        
+        .hero-container {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        header {
+            background: linear-gradient(140deg, #007bff 0%, #002147 100%);
+            color: white;
+            padding: 1.5rem;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .bank-logo {
+            font-size: 1.8rem;
+            font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            margin-left: 1.5rem;
+            font-weight: 500;
+            transition: opacity 0.2s;
+        }
+        
+        .nav-links a:hover {
+            opacity: 0.8;
+        }
+        
+        .hero {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .hero-content {
+            width: 50%;
+            padding-right: 2rem;
+        }
+        
+        .hero-image {
+            width: 50%;
+            text-align: center;
+        }
+        
+        .hero-image img {
+            max-width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: #343a40;
+        }
+        
+        p {
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+            color: #6c757d;
+            line-height: 1.6;
+        }
+        
+        .hero-buttons {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .button {
+            display: inline-block;
+            padding: 0.9rem 2rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: none;
+            cursor: pointer;
+            text-align: center;
+        }
+        
+        .primary {
+            background: linear-gradient(140deg, #007bff 0%, #0056b3 100%);
+            color: white;
+            box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3);
+        }
+        
+        .secondary {
+            /* background: white; */
+            background: linear-gradient(140deg, #f0f1f1 0%, #fffefe 100%);
+            color: #007bff;
+            /* color: white; */
+            /* color: #ffffff; */
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e0e0e0;
+        }
+        
+        /* .register-btn:hover {
+            color: white !important;
+        } */
+
+
+        .button:hover {
+            transform: translateY(-3px);
+        }
+        
+        .primary:hover {
+            box-shadow: 0 6px 15px rgba(0, 123, 255, 0.4);
+        }
+        
+        .secondary:hover {
+            box-shadow: 0 6px 15px rgba(252, 249, 249, 0.15);
+        }
+        
+        .features {
+            background-color: white;
+            padding: 4rem 2rem;
+        }
+        
+        .features-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        
+        .features-title {
+            font-size: 2.2rem;
+            margin-bottom: 3rem;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+        }
+        
+        .feature-card {
+            background: #f8f9fa;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-10px);
+        }
+        
+        .feature-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: #007bff;
+        }
+        
+        .feature-title {
+            font-size: 1.3rem;
+            margin-bottom: 1rem;
+        }
+        
+        footer {
+            background-color: #212529;
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+        
+        footer p {
+            color: #adb5bd;
+            margin: 0;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .nav-links {
+                margin-top: 1rem;
+            }
+            
+            .hero {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .hero-content, .hero-image {
+                width: 100%;
+                padding-right: 0;
+            }
+            
+            .hero-image {
+                margin-top: 2rem;
+            }
+            
+            .hero-buttons {
+                justify-content: center;
+            }
+            
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 2.2rem;
+            }
+        }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Welcome to Vulnerable Bank</h1>
-        <h2>Made for Security Engineers to practice Application Security</h2>
-        <div class="links">
-            <a href="{{ url_for('login') }}" class="button">Login</a>
-            <a href="{{ url_for('register') }}" class="button">Register</a>
+    <div class="hero-container">
+        <header>
+            <div class="header-content">
+                <div class="bank-logo">Vulnerable Bank</div>
+                <nav class="nav-links">
+                    <a href="{{ url_for('login') }}">Sign In</a>
+                    <a href="{{ url_for('register') }}">Sign Up</a>
+                </nav>
+            </div>
+        </header>
+        
+        <div class="hero">
+            <div class="hero-content">
+                <h1>Banking Made Simple & InSecure</h1>
+                <p>This is an Intentionally vulnerable application, designed for everyone to practice application security.</p>
+                <div class="hero-buttons">
+                    <a href="{{ url_for('login') }}" class="button primary">Login</a>
+                    <a href="{{ url_for('register') }}" class="button secondary">Register</a>
+                    <!-- <a href="{{ url_for('register') }}" class="button register-btn">Register</a> -->
+
+                </div>
+            </div>
+            <div class="hero-image">
+                <img src="{{ url_for('static', filename='uploads/banking-app.png') }}" onerror="this.src='https://via.placeholder.com/500x300?text=Banking+App'" alt="Banking App">
+            </div>
         </div>
+        
+        <section class="features">
+            <div class="features-content">
+                <h2 class="features-title">Our Features</h2>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">💸</div>
+                        <h3 class="feature-title">Money Transfers</h3>
+                        <p>Send money instantly to any account within our banking system.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">💳</div>
+                        <h3 class="feature-title">Virtual Cards</h3>
+                        <p>Create and manage virtual payment cards for secure online transactions.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">💰</div>
+                        <h3 class="feature-title">Loan Services</h3>
+                        <p>Apply for loans with competitive rates and quick approval process.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <footer>
+            <p>Vulnerable Bank Ltd. | Made for Security Engineers to practice Application Security</p>
+        </footer>
     </div>
 </body>
 </html>
