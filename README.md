@@ -1,13 +1,10 @@
-![image](https://github.com/user-attachments/assets/7fda0106-b083-48d6-8629-f7ee3c8eb73d)
-![image](https://github.com/user-attachments/assets/f8d14d62-d71e-41f3-85c7-133553a75989)
-
-
-
 # Vulnerable Bank Application 🏦
 
 A deliberately vulnerable web application for practicing application security testing, secure code review and implementing security in CI/CD pipelines.
 
 ⚠️ **WARNING: This application is intentionally vulnerable and should only be used for educational purposes in isolated environments.**
+
+![image](https://github.com/user-attachments/assets/7fda0106-b083-48d6-8629-f7ee3c8eb73d)
 
 ## Overview
 
@@ -29,6 +26,8 @@ This project is a simple banking application with multiple security vulnerabilit
 - 🔑 Password Reset System (3-digit PIN)
 - 💳 Virtual Cards Management
 - 📱 Bill Payments System
+
+![image](https://github.com/user-attachments/assets/f8d14d62-d71e-41f3-85c7-133553a75989)
 
 ### Implemented Vulnerabilities
 
