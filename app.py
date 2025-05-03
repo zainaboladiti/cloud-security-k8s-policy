@@ -170,6 +170,8 @@ def login():
                     'status': 'success',
                     'message': 'Login successful',
                     'token': token,
+                    'accountNumber': user[3],
+                    'isAdmin':       user[5],
                     'debug_info': {  # Vulnerability: Information disclosure
                         'user_id': user[0],
                         'username': user[1],
