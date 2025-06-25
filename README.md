@@ -241,10 +241,44 @@ The application uses PostgreSQL. The database will be automatically initialized 
    ```
 
 #### PostgreSQL Issues
+
 1. Connection refused:
-   - Ensure PostgreSQL is running
-   - Check credentials in .env file
-   - Verify PostgreSQL port is not blocked
+
+   * Ensure PostgreSQL is running
+   * Check credentials in `.env` file
+   * Verify PostgreSQL port is not blocked
+
+2. Authentication failed:
+
+   * Make sure `DB_PASSWORD` in `.env` matches your Postgres user’s password.
+   * Or reset the `postgres` user with:
+
+     ```sql
+     ALTER ROLE postgres WITH PASSWORD 'your_password';
+     ```
+
+3. Installation errors:
+
+   * If you encounter any PostgreSQL errors, install via Chocolatey and set the password to `postgres`:
+
+     ```powershell
+     choco install postgresql --version=17.4.0 -y
+     # Use the generated password, or immediately reset it:
+     & 'C:\Program Files\PostgreSQL\17\bin\psql.exe' -U postgres -c "ALTER ROLE postgres WITH PASSWORD 'postgres';"
+     ```
+
+4. Database does not exist:
+
+   * Create it manually with:
+
+     ```sql
+     CREATE DATABASE vulnerable_bank;
+     ```
+   * Or run:
+
+     ```bash
+     createdb -U postgres -h localhost vulnerable_bank
+     ```
 
 ## Testing Guide 🎯
 
