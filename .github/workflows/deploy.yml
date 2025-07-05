@@ -2,7 +2,8 @@ name: Deploy VulnBank
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
@@ -26,6 +27,7 @@ jobs:
       - name: Sync code to server
         run: |
           rsync -avz --delete \
+            --exclude '.env' \
             -e "ssh -o StrictHostKeyChecking=no" \
             ./ \
             ${{ secrets.USERNAME }}@${{ secrets.HOST }}:/home/${{ secrets.USERNAME }}/vuln-bank/
@@ -38,13 +40,18 @@ jobs:
 
             cd /home/${USER}/vuln-bank
 
-            # stop containers
+            # ensure .env exists (bootstrap on first deploy)
+            if [ ! -f .env ]; then
+              cp .example.env .env
+            fi
+
+            # stop any running containers
             docker compose down
 
             # rebuild & restart
             docker compose up -d --build
 
-            # cleanup old images
+            # remove dangling images
             docker image prune -f
 
             # show status
