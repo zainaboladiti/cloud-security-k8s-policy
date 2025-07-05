@@ -42,7 +42,7 @@ jobs:
 
             # ensure .env exists (bootstrap on first deploy)
             if [ ! -f .env ]; then
-              cp .example.env .env
+              cp .env.example .env
             fi
 
             # stop any running containers
