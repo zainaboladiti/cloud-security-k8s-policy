@@ -54,4 +54,4 @@ jobs:
       - name: Health Check
         run: |
           sleep 20
-          curl -f https://vulnbank.org || (echo "❌ Health check failed" && exit 1)
+          curl -f https://vulnbank.org || (echo "Health check failed" && exit 1)
