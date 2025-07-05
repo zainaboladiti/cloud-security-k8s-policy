@@ -773,3 +773,224 @@ function logout() {
     localStorage.removeItem('jwt_token');
     window.location.href = '/login';
 }
+
+
+// ===== CUSTOMER SUPPORT CHAT FUNCTIONALITY =====
+
+let chatOpen = false;
+let chatHistory = [];
+
+// Initialize chat widget
+document.addEventListener('DOMContentLoaded', function() {
+    // Set initial time for welcome message
+    document.getElementById('initialTime').textContent = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    
+    // Add enter key listener for chat input
+    document.getElementById('chatMessageInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            sendChatMessage();
+        }
+    });
+});
+
+function toggleChat() {
+    const chatWindow = document.getElementById('chatWindow');
+    const chatBadge = document.getElementById('chatBadge');
+    const chatWidget = document.getElementById('chatWidget');
+    
+    if (chatOpen) {
+        // Close chat
+        chatWindow.classList.add('closing');
+        chatWidget.classList.remove('chat-open');
+        setTimeout(() => {
+            chatWindow.style.display = 'none';
+            chatWindow.classList.remove('closing');
+        }, 300);
+        chatOpen = false;
+    } else {
+        // Open chat
+        chatWindow.style.display = 'flex';
+        chatWindow.classList.add('opening');
+        chatWidget.classList.add('chat-open');
+        setTimeout(() => {
+            chatWindow.classList.remove('opening');
+        }, 300);
+        chatOpen = true;
+        
+        // Hide notification badge
+        chatBadge.style.display = 'none';
+        
+        // Focus input
+        setTimeout(() => {
+            document.getElementById('chatMessageInput').focus();
+        }, 300);
+    }
+}
+
+function sendChatMessage() {
+    const input = document.getElementById('chatMessageInput');
+    const message = input.value.trim();
+    
+    if (!message) return;
+    
+    // Add user message to chat
+    addMessageToChat(message, true);
+    
+    // Clear input
+    input.value = '';
+    
+    // Disable send button and show typing indicator
+    const sendBtn = document.getElementById('sendChatBtn');
+    const typingIndicator = document.getElementById('typingIndicator');
+    
+    sendBtn.disabled = true;
+    typingIndicator.style.display = 'flex';
+    
+    // Send message to AI
+    sendToAI(message);
+}
+
+function addMessageToChat(message, isUser = false, timestamp = null) {
+    const messagesContainer = document.getElementById('chatMessages');
+    const messageTime = timestamp || new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
+    
+    messageDiv.innerHTML = `
+        <div class="message-avatar">
+            ${isUser ? 
+                `<svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                </svg>` :
+                `<svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12,2A2,2 0 0,1 14,4C14,4.74 13.6,5.39 13,5.73V7H14A7,7 0 0,1 21,14H22A1,1 0 0,1 23,15V18A1,1 0 0,1 22,19H21V20A2,2 0 0,1 19,22H5A2,2 0 0,1 3,20V19H2A1,1 0 0,1 1,18V15A1,1 0 0,1 2,14H3A7,7 0 0,1 10,7H11V5.73C10.4,5.39 10,4.74 10,4A2,2 0 0,1 12,2M7.5,13A2.5,2.5 0 0,0 5,15.5A2.5,2.5 0 0,0 7.5,18A2.5,2.5 0 0,0 10,15.5A2.5,2.5 0 0,0 7.5,13M16.5,13A2.5,2.5 0 0,0 14,15.5A2.5,2.5 0 0,0 16.5,18A2.5,2.5 0 0,0 19,15.5A2.5,2.5 0 0,0 16.5,13Z"/>
+                </svg>`
+            }
+        </div>
+        <div class="message-content">
+            <div class="message-text">${escapeHtml(message)}</div>
+            <div class="message-time">${messageTime}</div>
+        </div>
+    `;
+    
+    messagesContainer.appendChild(messageDiv);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+async function sendToAI(message) {
+    try {
+        // Get selected chat mode
+        const selectedMode = document.querySelector('input[name="chatMode"]:checked').value;
+        const token = localStorage.getItem('jwt_token');
+        
+        // Determine endpoint and headers based on mode
+        let endpoint, headers;
+        
+        if (selectedMode === 'authenticated') {
+            endpoint = '/api/ai/chat';
+            headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+        } else {
+            endpoint = '/api/ai/chat/anonymous';
+            headers = {
+                'Content-Type': 'application/json'
+            };
+        }
+        
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify({ message: message })
+        });
+        
+        const data = await response.json();
+        
+        // Hide typing indicator
+        document.getElementById('typingIndicator').style.display = 'none';
+        
+        // Re-enable send button
+        document.getElementById('sendChatBtn').disabled = false;
+        
+        if (data.status === 'success') {
+            const aiResponse = data.ai_response.response || 'Sorry, I couldn\'t process your request.';
+            
+            // Add mode indicator to response for debugging
+            let responseWithMode = aiResponse;
+            if (selectedMode === 'anonymous') {
+                responseWithMode += '\n\n🔓 (Anonymous Mode - No user context)';
+            } else {
+                responseWithMode += '\n\n🔐 (Authenticated Mode - User context included)';
+            }
+            
+            // Add AI response with slight delay for realism
+            setTimeout(() => {
+                addMessageToChat(responseWithMode, false);
+            }, 500);
+            
+        } else {
+            // Show error message with mode info
+            let errorMsg = 'Sorry, I\'m experiencing technical difficulties. Please try again later.';
+            if (selectedMode === 'anonymous' && data.message && data.message.includes('authentication')) {
+                errorMsg = 'Authentication error in anonymous mode. This might be a configuration issue.';
+            }
+            
+            setTimeout(() => {
+                addMessageToChat(errorMsg, false);
+            }, 500);
+        }
+        
+    } catch (error) {
+        console.error('Chat error:', error);
+        
+        // Hide typing indicator
+        document.getElementById('typingIndicator').style.display = 'none';
+        
+        // Re-enable send button
+        document.getElementById('sendChatBtn').disabled = false;
+        
+        // Show error message with mode awareness
+        const selectedMode = document.querySelector('input[name="chatMode"]:checked').value;
+        let errorMsg = 'I\'m currently unable to connect. Please check your internet connection and try again.';
+        
+        if (selectedMode === 'authenticated' && error.message && error.message.includes('token')) {
+            errorMsg = 'Authentication failed. Please try logging in again or switch to Anonymous mode.';
+        }
+        
+        setTimeout(() => {
+            addMessageToChat(errorMsg, false);
+        }, 500);
+    }
+}
+
+function escapeHtml(text) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+}
+
+// Show notification badge when chat is closed (simulate new messages)
+function showChatNotification() {
+    if (!chatOpen) {
+        const chatBadge = document.getElementById('chatBadge');
+        chatBadge.style.display = 'flex';
+    }
+}
+
+// Optional: Add some sample interactions for demo
+function addWelcomeMessage() {
+    if (chatHistory.length === 0) {
+        chatHistory.push({
+            message: "Hi! I'm your AI banking assistant. How can I help you today?",
+            isUser: false,
+            timestamp: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+        });
+    }
+}
