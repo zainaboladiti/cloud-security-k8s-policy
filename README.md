@@ -1,6 +1,6 @@
 # Vulnerable Bank Application 🏦
 
-A deliberately vulnerable web application for practicing application security testing, secure code review and implementing security in CI/CD pipelines.
+A deliberately vulnerable web application for practicing application security testing of Web, APIs and LLMs, secure code review and implementing security in CI/CD pipelines.
 
 ⚠️ **WARNING: This application is intentionally vulnerable and should only be used for educational purposes in isolated environments.**
 
@@ -10,6 +10,7 @@ A deliberately vulnerable web application for practicing application security te
 
 This project is a simple banking application with multiple security vulnerabilities built in. It's designed to help security engineers, developers, interns, QA analyst and DevSecOps practitioners learn about:
 - Common web application and API vulnerabilities
+- AI/LLM Vulnerabilities
 - Secure coding practices
 - Security testing automation
 - DevSecOps implementation
