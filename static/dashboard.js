@@ -833,6 +833,49 @@ function sendChatMessage() {
     
     if (!message) return;
     
+    // Check for special commands
+    if (message.toLowerCase() === '/status' || message.toLowerCase() === '/rate-limit') {
+        // Add user message to chat
+        addMessageToChat(message, true);
+        
+        // Clear input
+        input.value = '';
+        
+        // Show typing indicator briefly
+        const typingIndicator = document.getElementById('typingIndicator');
+        typingIndicator.style.display = 'flex';
+        
+        setTimeout(() => {
+            typingIndicator.style.display = 'none';
+            checkRateLimitStatus();
+        }, 500);
+        
+        return;
+    }
+    
+    if (message.toLowerCase() === '/help' || message.toLowerCase() === '/commands') {
+        // Add user message to chat
+        addMessageToChat(message, true);
+        
+        // Clear input
+        input.value = '';
+        
+        const helpMessage = `🤖 **Available Commands:**\n\n` +
+            `• **/help** - Show this help message\n` +
+            `• **/status** or **/rate-limit** - Check your current rate limit status\n` +
+            `• **Switch modes** - Use the radio buttons above to switch between Anonymous and Authenticated modes\n\n` +
+            `**Rate Limits:**\n` +
+            `• Anonymous: 5 requests per 3 hours\n` +
+            `• Authenticated: 10 requests per 3 hours\n\n` +
+            `Just type your question to chat with the AI assistant!`;
+        
+        setTimeout(() => {
+            addMessageToChat(helpMessage, false);
+        }, 300);
+        
+        return;
+    }
+    
     // Add user message to chat
     addMessageToChat(message, true);
     
@@ -914,7 +957,35 @@ async function sendToAI(message) {
         // Re-enable send button
         document.getElementById('sendChatBtn').disabled = false;
         
-        if (data.status === 'success') {
+        if (response.status === 429) {
+            // Handle rate limiting specifically
+            const rateLimitInfo = data.rate_limit_info || {};
+            const limitType = rateLimitInfo.limit_type || 'unknown';
+            const currentCount = rateLimitInfo.current_count || 'unknown';
+            const limit = rateLimitInfo.limit || 'unknown';
+            const windowHours = rateLimitInfo.window_hours || 3;
+            
+            let rateLimitMessage = `🚫 **Rate Limit Exceeded**\n\n`;
+            
+            if (limitType === 'unauthenticated_ip') {
+                rateLimitMessage += `You've reached the limit for anonymous users: **${currentCount}/${limit} requests** in the last ${windowHours} hours.\n\n`;
+                rateLimitMessage += `💡 **Tip**: Log in to get higher limits (10 requests per 3 hours)`;
+            } else if (limitType === 'authenticated_user') {
+                rateLimitMessage += `You've reached your user limit: **${currentCount}/${limit} requests** in the last ${windowHours} hours.\n\n`;
+                rateLimitMessage += `Please wait before sending more messages.`;
+            } else if (limitType === 'authenticated_ip') {
+                rateLimitMessage += `Your IP address has reached the limit: **${currentCount}/${limit} requests** in the last ${windowHours} hours.\n\n`;
+                rateLimitMessage += `Please wait before sending more messages.`;
+            } else {
+                rateLimitMessage += `${data.message || 'Too many requests. Please try again later.'}\n\n`;
+                rateLimitMessage += `You can check your rate limit status in the chat options.`;
+            }
+            
+            setTimeout(() => {
+                addMessageToChat(rateLimitMessage, false);
+            }, 500);
+            
+        } else if (data.status === 'success') {
             const aiResponse = data.ai_response.response || 'Sorry, I couldn\'t process your request.';
             
             // Add mode indicator to response for debugging
@@ -931,10 +1002,18 @@ async function sendToAI(message) {
             }, 500);
             
         } else {
-            // Show error message with mode info
+            // Handle other API errors (400, 401, 500, etc.)
             let errorMsg = 'Sorry, I\'m experiencing technical difficulties. Please try again later.';
-            if (selectedMode === 'anonymous' && data.message && data.message.includes('authentication')) {
-                errorMsg = 'Authentication error in anonymous mode. This might be a configuration issue.';
+            
+            if (response.status === 401) {
+                errorMsg = '🔐 **Authentication Error**\n\nYour session has expired. Please log in again or switch to Anonymous mode.';
+            } else if (response.status === 400) {
+                errorMsg = '❌ **Invalid Request**\n\n' + (data.message || 'Please check your message and try again.');
+            } else if (response.status === 500) {
+                errorMsg = '🔧 **Server Error**\n\nThere\'s a temporary issue with the AI service. Please try again in a few moments.';
+            } else if (data.message) {
+                // Use the specific error message from the server
+                errorMsg = '⚠️ **Error**\n\n' + data.message;
             }
             
             setTimeout(() => {
@@ -976,6 +1055,51 @@ function escapeHtml(text) {
     return text.replace(/[&<>"']/g, function(m) { return map[m]; });
 }
 
+// Function to check current rate limit status
+async function checkRateLimitStatus() {
+    try {
+        const token = localStorage.getItem('jwt_token');
+        const headers = {};
+        
+        // Include auth header if available for more detailed status
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        const response = await fetch('/api/ai/rate-limit-status', {
+            headers: headers
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            const unauth = data.rate_limits.unauthenticated;
+            const auth = data.rate_limits.authenticated;
+            
+            let statusMessage = `📊 **Current Rate Limit Status**\n\n`;
+            statusMessage += `**Anonymous Mode:**\n`;
+            statusMessage += `${unauth.requests_made}/${unauth.limit} requests used (${unauth.remaining || 0} remaining)\n\n`;
+            
+            if (data.authenticated_user) {
+                statusMessage += `**Authenticated Mode (${data.authenticated_user.username}):**\n`;
+                statusMessage += `User: ${auth.user_requests_made}/${auth.limit} requests used (${auth.user_remaining || 0} remaining)\n`;
+                statusMessage += `IP: ${auth.ip_requests_made}/${auth.limit} requests used (${auth.ip_remaining || 0} remaining)\n\n`;
+            } else {
+                statusMessage += `**Authenticated Mode:**\n`;
+                statusMessage += `Log in to see your authenticated rate limits\n\n`;
+            }
+            
+            statusMessage += `Rate limits reset every ${unauth.window_hours} hours.`;
+            
+            addMessageToChat(statusMessage, false);
+        } else {
+            addMessageToChat('❌ Unable to check rate limit status. Please try again later.', false);
+        }
+    } catch (error) {
+        console.error('Error checking rate limit status:', error);
+        addMessageToChat('❌ Error checking rate limit status. Please try again later.', false);
+    }
+}
+
 // Show notification badge when chat is closed (simulate new messages)
 function showChatNotification() {
     if (!chatOpen) {
@@ -987,8 +1111,15 @@ function showChatNotification() {
 // Optional: Add some sample interactions for demo
 function addWelcomeMessage() {
     if (chatHistory.length === 0) {
+        const welcomeMsg = `Hi! I'm your AI banking assistant. How can I help you today?\n\n` +
+            `💡 **Quick Tips:**\n` +
+            `• Type **/help** for available commands\n` +
+            `• Type **/status** to check your rate limits\n` +
+            `• Switch between Anonymous (5 requests/3hrs) and Authenticated (10 requests/3hrs) modes above\n\n` +
+            `Ask me about your account, transactions, or any banking questions!`;
+        
         chatHistory.push({
-            message: "Hi! I'm your AI banking assistant. How can I help you today?",
+            message: welcomeMsg,
             isUser: false,
             timestamp: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
         });
