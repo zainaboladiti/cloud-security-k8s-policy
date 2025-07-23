@@ -501,8 +501,8 @@ def get_transaction_history(account_number):
             'amount': float(t[3]),
             'timestamp': str(t[4]),
             'type': t[5],
-            'description': t[6],
-            'query_used': query  # Vulnerability: Exposing SQL query
+            'description': t[6]
+            #'query_used': query  # Vulnerability: Exposing SQL query
         } for t in transactions]
         
         return jsonify({
