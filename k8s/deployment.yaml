@@ -22,7 +22,8 @@ spec:
           # If using public image: use vulnbank/vulnbank:latest
           ports:
             - containerPort: 3000
-          # intentionally unsafe for policy testing: no securityContext, no runAsUser, no resources, privileged false by default
+            # NOTE: No securityContext is defined, so it will run as the image's default user, which is root.
+            # intentionally unsafe for policy testing: no securityContext, no runAsUser, no resources, privileged false by default
           env:
             - name: DB_NAME
               value: "vulnerable_bank"

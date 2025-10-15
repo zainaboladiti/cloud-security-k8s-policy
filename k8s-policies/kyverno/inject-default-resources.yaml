@@ -1,0 +1,32 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: inject-default-resource-limits
+  annotations:
+    policies.kyverno.io/title: "Inject default CPU/memory requests & limits"
+spec:
+  background: true
+  validationFailureAction: Enforce
+  rules:
+    - name: set-default-limits
+      match:
+        resources:
+          kinds:
+            - Deployment
+            - StatefulSet
+            - DaemonSet
+            - Pod
+      mutate:
+        patchStrategicMerge:
+          spec:
+            template:
+              spec:
+                containers:
+                  - (name): "*" # Apply to all containers
+                    resources:
+                      limits:
+                        memory: "256Mi"
+                        cpu: "500m"
+                      requests:
+                        memory: "128Mi"
+                        cpu: "250m"
