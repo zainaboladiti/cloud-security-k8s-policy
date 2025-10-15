@@ -1,0 +1,15 @@
+# web service
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: vuln-bank-svc
+spec:
+  selector:
+    app: vuln-bank
+  type: NodePort
+  ports:
+    - protocol: TCP
+      port: 3000 # external port (user-facing)
+      targetPort: 5000  # internal app port inside container
+      nodePort: 30080

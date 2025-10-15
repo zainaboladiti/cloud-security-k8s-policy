@@ -1,0 +1,39 @@
+# web deployment
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vuln-bank
+  labels:
+    app: vuln-bank
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vuln-bank
+  template:
+    metadata:
+      labels:
+        app: vuln-bank
+    spec:
+      containers:
+        - name: vuln-bank
+          image: vuln-bank:local  # If you loaded local image: use vulnbank:local
+          # If using public image: use vulnbank/vulnbank:latest
+          ports:
+            - containerPort: 3000
+          # intentionally unsafe for policy testing: no securityContext, no runAsUser, no resources, privileged false by default
+          env:
+            - name: DB_NAME
+              value: "vulnerable_bank"
+            - name: DB_USER
+              value: "postgres"
+            - name: DB_PASSWORD
+              value: "postgres"
+            - name: DB_HOST
+              value: "vuln-bank-db"
+            - name: DB_PORT
+              value: "5432"
+
+
+          
