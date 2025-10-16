@@ -5,7 +5,7 @@ metadata:
   annotations:
     policies.kyverno.io/title: "Require runAsNonRoot or runAsUser>0"
 spec:
-  validationFailureAction: enforce # This blocks the resource creation/deployment, change to 'audit' for less strict testing
+  validationFailureAction: Enforce # This blocks the resource creation/deployment, change to 'audit' for less strict testing
   background: true
   rules:
     - name: require-run-as-non-root

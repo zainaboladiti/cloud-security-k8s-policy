@@ -1,0 +1,44 @@
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8sdenyhostnetprivileged
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sDenyHostNetPrivileged
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8sdenyhostnetprivileged
+
+        violation[{"msg": msg}] {
+          # Logic to deny hostNetwork
+          obj := input.review.object
+          hostnet := obj.spec.hostNetwork == true
+          hostnet
+          msg := sprintf("hostNetwork is not allowed: hostNetwork=true for pod %v", [obj.metadata.name])
+        }
+
+        violation[{"msg": msg}] {
+          # Logic to deny privileged containers
+          obj := input.review.object
+          has_privileged_container(obj)
+          msg := sprintf("privileged containers are not allowed in pod %v", [obj.metadata.name])
+        }
+
+        # Consolidated Helper Function
+        has_privileged_container(obj) {
+          # Check regular containers
+          some i
+          container := obj.spec.containers[i]
+          container.securityContext.privileged == true
+        }
+
+        has_privileged_container(obj) {
+          # Check init containers
+          some j
+          container := obj.spec.initContainers[j]
+          container.securityContext.privileged == true
+        }
+# check containers and initContainers for privileged:true in securityContext
