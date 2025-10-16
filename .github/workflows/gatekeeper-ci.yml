@@ -19,7 +19,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install Gator CLI
         run: |
-          latest=$(curl -s https://api.github.com/repos/open-policy-agent/gatekeeper/releases/latest | grep browser_download_url | grep gator-linux-amd64 | cut -d '"' -f 4)
+          latest=$(curl -s https://api.github.com/repos/open-policy-agent/gatekeeper/releases/latest \
+            | jq -r '.assets[] | select(.name | test("gator-linux-amd64$")) | .browser_download_url')
+          echo "Downloading Gator from: $latest"
           curl -L -o gator "$latest"
           chmod +x gator
           sudo mv gator /usr/local/bin/
