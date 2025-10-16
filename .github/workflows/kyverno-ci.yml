@@ -1,13 +1,17 @@
 name: kyverno-ci
 on:
   push:
-    paths:
-      - 'k8s/**'
-      - 'k8s-policies/kyverno/**'
   pull_request:
-    paths:
-      - 'k8s/**'
-      - 'k8s-policies/kyverno/**'
+  workflow_dispatch:
+
+#   push:
+#     paths:
+#       - 'k8s/**'
+#       - 'k8s-policies/kyverno/**'
+#   pull_request:
+#     paths:
+#       - 'k8s/**'
+#       - 'k8s-policies/kyverno/**'
 
 jobs:
   kyverno-test:

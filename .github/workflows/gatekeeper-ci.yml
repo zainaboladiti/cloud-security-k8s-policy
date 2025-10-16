@@ -1,13 +1,17 @@
 name: gatekeeper-ci
 on:
   push:
-    paths:
-      - 'k8s-policies/gatekeeper/**'
-      - 'k8s/**'
   pull_request:
-    paths:
-      - 'k8s-policies/gatekeeper/**'
-      - 'k8s/**'
+  workflow_dispatch:
+
+#   push:
+#     paths:
+#       - 'k8s-policies/gatekeeper/**'
+#       - 'k8s/**'
+#   pull_request:
+#     paths:
+#       - 'k8s-policies/gatekeeper/**'
+#       - 'k8s/**'
 
 jobs:
   gatekeeper-test:
