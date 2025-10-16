@@ -20,8 +20,12 @@ jobs:
       - name: Install Gator CLI
         run: |
           latest=$(curl -s https://api.github.com/repos/open-policy-agent/gatekeeper/releases/latest \
-            | jq -r '.assets[] | select(.name | test("gator-linux-amd64$")) | .browser_download_url')
+            | jq -r '.assets[] | select(.name | test("gator.*linux.*amd64")) | .browser_download_url')
           echo "Downloading Gator from: $latest"
+          if [ -z "$latest" ]; then
+            echo "ERROR: Could not find a matching Gator download URL"
+            exit 1
+          fi
           curl -L -o gator "$latest"
           chmod +x gator
           sudo mv gator /usr/local/bin/

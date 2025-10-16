@@ -21,8 +21,12 @@ jobs:
       - name: Run kyverno apply (dry-run) using kyverno CLI
         run: |
           latest=$(curl -s https://api.github.com/repos/kyverno/kyverno/releases/latest \
-            | jq -r '.assets[] | select(.name | test("kyverno-cli_linux_amd64$")) | .browser_download_url')
+            | jq -r '.assets[] | select(.name | test("kyverno-cli.*linux.*(amd64|x86_64)")) | .browser_download_url')
           echo "Downloading Kyverno CLI from: $latest"
+          if [ -z "$latest" ]; then
+            echo "ERROR: Could not find a matching Kyverno CLI download URL"
+            exit 1
+          fi
           curl -L -o kyverno "$latest"
           chmod +x kyverno
           sudo mv kyverno /usr/local/bin/
