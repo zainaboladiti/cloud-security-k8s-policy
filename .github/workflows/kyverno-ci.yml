@@ -1,0 +1,23 @@
+name: kyverno-ci
+on:
+  push:
+    paths:
+      - 'k8s/**'
+      - 'k8s-policies/kyverno/**'
+  pull_request:
+    paths:
+      - 'k8s/**'
+      - 'k8s-policies/kyverno/**'
+
+jobs:
+  kyverno-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run kyverno apply (dry-run) using kyverno CLI
+        run: |
+          curl -sSL -o kyverno https://github.com/kyverno/kyverno/releases/latest/download/kyverno-cli_linux_amd64
+          chmod +x kyverno && sudo mv kyverno /usr/local/bin/kyverno
+      - name: kyverno apply (dry-run)
+        run: |
+          kyverno apply policies/kyverno -r -x
