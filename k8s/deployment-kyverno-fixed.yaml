@@ -15,15 +15,16 @@ spec:
       labels:
         app: vuln-bank
     spec:
-     # Pod-level security enforcment
+      # Pod-level security enforcement
       securityContext:
         runAsNonRoot: true
-        runAsUser: 1000 # Explicit non-root UID
-        fsGroup: 1000 # For volume permissions
+        runAsUser: 1000  # Explicit non-root UID
+        fsGroup: 1000    # For volume permissions
       containers:
       - name: vuln-bank
-        image: vuln-bank:local # If you loaded local image: use vulnbank:local
-          # If using public image: use vulnbank/vulnbank:latest
+        # If you loaded local image: use vuln-bank:local
+        # If using public image: use vulnbank/vulnbank:latest
+        image: vuln-bank:local
         ports:
         - containerPort: 3000
         env:
@@ -37,11 +38,11 @@ spec:
           value: vuln-bank-db
         - name: DB_PORT
           value: "5432"
-         # Container-level security enforcment
+        # Container-level security enforcement
         securityContext:
           runAsNonRoot: true
           allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
+          readOnlyRootFilesystem: true # Extra hardening
           capabilities:
             drop:
             - ALL

@@ -5,27 +5,51 @@ metadata:
   annotations:
     policies.kyverno.io/title: "Require runAsNonRoot or runAsUser>0"
 spec:
-  validationFailureAction: Enforce # This blocks the resource creation/deployment, change to 'audit' for less strict testing
+  # This blocks the resource creation/deployment
+  # Change to 'Audit' for less strict testing (logs violations without blocking)
+  validationFailureAction: Enforce
+  
+  # Enable background scanning of existing resources
   background: true
+  
   rules:
-    - name: require-run-as-non-root
+    # Rule 1: Check for runAsNonRoot at pod level
+    - name: check-runAsNonRoot
       match:
-        resources:
-          kinds:
-            - Pod
-            - Deployment
-            - StatefulSet
-            - DaemonSet
+        any:
+        - resources:
+            kinds:
+              - Deployment
+              - StatefulSet
+              - DaemonSet
       validate:
-        message: "Containers must run as non-root (runAsNonRoot: true or runAsUser > 0)."
-        anyPattern:
-          - spec:
-              securityContext:
-                runAsNonRoot: true
-          - spec:
-              containers:
-                - securityContext:
-                    runAsNonRoot: true
-          - spec:
-              securityContext:
-                runAsUser: "> 0"
+        message: "Running as root is not allowed. Set runAsNonRoot to true in spec.template.spec.securityContext."
+        # Pattern validation: Checks that runAsNonRoot is explicitly set to true
+        # This prevents containers from running as root (UID 0)
+        pattern:
+          spec:
+            template:
+              spec:
+                securityContext:
+                  runAsNonRoot: true
+    
+    # Rule 2: Check for runAsUser > 0 at pod level
+    - name: check-runAsUser
+      match:
+        any:
+        - resources:
+            kinds:
+              - Deployment
+              - StatefulSet
+              - DaemonSet
+      validate:
+        message: "runAsUser must be greater than 0. Specify a non-root user ID in spec.template.spec.securityContext."
+        # Pattern validation: Ensures the user ID is not 0 (root)
+        # The ">0" operator checks that runAsUser is a positive integer
+        pattern:
+          spec:
+            template:
+              spec:
+                securityContext:
+                  runAsUser: ">0"
+

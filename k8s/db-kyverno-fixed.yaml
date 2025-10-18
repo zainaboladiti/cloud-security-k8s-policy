@@ -1,0 +1,71 @@
+# Database Deployment
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vuln-bank-db
+  labels:
+    app: vuln-bank-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vuln-bank-db
+  template:
+    metadata:
+      labels:
+        app: vuln-bank-db
+    # GOOD: Database with security context
+    spec:
+      # Pod-level security enforcement
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999        # Postgres default non-root user
+        fsGroup: 999          # File permissions
+      containers:
+      - name: postgres
+        image: postgres:13
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          value: vulnerable_bank
+        - name: POSTGRES_USER
+          value: postgres
+        - name: POSTGRES_PASSWORD
+          value: postgres
+        # Container-level security enforcement 
+        securityContext:
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false  # DB needs to write data
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 250m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+      volumes:
+      - name: postgres-storage
+        emptyDir: {}
+
+---
+# Database Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: vuln-bank-db
+spec:
+  selector:
+    app: vuln-bank-db
+  ports:
+  - protocol: TCP
+    port: 5432
+    targetPort: 5432

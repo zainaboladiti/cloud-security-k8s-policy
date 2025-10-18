@@ -15,10 +15,12 @@ spec:
     metadata:
       labels:
         app: vuln-bank-db
+    # BAD: Database running as root
     spec:
       containers:
         - name: postgres
           image: postgres:13
+      # No securityContext = runs as root (UID 0)
           env:
             - name: POSTGRES_DB
               value: "vulnerable_bank"
@@ -36,6 +38,7 @@ spec:
           emptyDir: {}
 
 ---
+# Database Service
 apiVersion: v1
 kind: Service
 metadata:

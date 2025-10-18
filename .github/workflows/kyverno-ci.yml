@@ -67,7 +67,7 @@ jobs:
       - name: Test Compliant Resources
         run: |
             set -e
-            echo "Testing COMPLIANT resources..."
+            echo "Testing COMPLIANT manifests..."
             echo ""
             
             # Test the fixed deployment
@@ -82,7 +82,7 @@ jobs:
             echo ""
             echo "Testing: Other valid resources"
             kyverno apply k8s-policies/kyverno \
-                --resource k8s/db.yaml \
+                --resource k8s/db-kyverno-fixed.yaml \
                 --resource k8s/service.yaml
             
             echo ""
@@ -93,12 +93,12 @@ jobs:
           set -e
           echo ""
           echo "Testing NON-COMPLIANT resources..."
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "-------------------------------------------"
           echo "These SHOULD fail - that proves policies work!"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "--------------------------------------------"
           echo ""
           
-          # Test the original non-compliant deployment
+          # Test the non-compliant deployment
           echo "Testing: deployment.yaml (original/non-compliant)"
           if kyverno apply k8s-policies/kyverno --resource k8s/deployment.yaml; then
             echo "WARNING: Non-compliant resource was NOT blocked!"
@@ -108,6 +108,17 @@ jobs:
             echo "Non-compliant resource correctly blocked by policy"
           fi
           
+          echo ""
+
+          # Test the non-compliant database resource
+          echo "Testing: db.yaml"
+          if kyverno apply k8s-policies/kyverno --resource k8s/db.yaml; then
+            echo "WARNING: Non-compliant DB resource was NOT blocked!"
+            echo "Policies may not be working correctly."
+            exit 1
+          else
+            echo "Non-compliant DB resource correctly blocked by policy"
+          fi
           echo ""
           echo "Policy enforcement verified successfully!"
 
