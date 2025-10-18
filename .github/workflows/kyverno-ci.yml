@@ -1,39 +1,45 @@
 name: Kyverno CI Policy Validation
 on:
   push:
+    branches:
+      - main
   pull_request:
+    branches:
+      - main
   workflow_dispatch:
-
-#   push:
-#     paths:
-#       - 'k8s/**'
-#       - 'k8s-policies/kyverno/**'
-#   pull_request:
-#     paths:
-#       - 'k8s/**'
-#       - 'k8s-policies/kyverno/**'
 
 jobs:
   kyverno-test:
     runs-on: ubuntu-latest
+    
     steps:
-      - uses: actions/checkout@v4
-      - name: Run kyverno apply (dry-run) using kyverno CLI
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install Kyverno CLI
         run: |
           set -e
-          latest=$(curl -s https://api.github.com/repos/kyverno/kyverno/releases/latest \
-            | jq -r '.assets[] | select(.name | test("kyverno-cli_.*linux_x86_64\\.tar\\.gz$")) | .browser_download_url' | head -n 1)
-          echo "Downloading Kyverno CLI from: $latest"
-          if [ -z "$latest" ]; then
-            echo "ERROR: Could not find a matching Kyverno CLI download URL"
+          
+          # Get the latest release info
+          latest_url=$(curl -s https://api.github.com/repos/kyverno/kyverno/releases/latest \
+            | jq -r '.assets[] | select(.name | contains("kyverno-cli") and contains("linux") and contains("x86_64") and endswith(".tar.gz")) | .browser_download_url')
+          
+          echo "Downloading Kyverno CLI from: $latest_url"
+          
+          if [ -z "$latest_url" ]; then
+            echo "ERROR: Could not find Kyverno CLI download URL"
             exit 1
           fi
-
-          curl -L -o kyverno.tar.gz "$latest"
+          
+          # Download and extract
+          curl -L -o kyverno.tar.gz "$latest_url"
           tar -xzf kyverno.tar.gz
+          
+          # Move to bin and make executable
           sudo mv kyverno /usr/local/bin/
-          chmod +x /usr/local/bin/kyverno
-          kyverno version  
+          sudo chmod +x /usr/local/bin/kyverno
+          
+          # Verify installation 
       # run: |
         #   latest=$(curl -s https://api.github.com/repos/kyverno/kyverno/releases/latest \
         #     | jq -r '.assets[] | select(.name | test("kyverno-cli.*linux.*(amd64|x86_64)")) | .browser_download_url')
@@ -46,6 +52,39 @@ jobs:
         #   chmod +x kyverno
         #   sudo mv kyverno /usr/local/bin/
 
-      - name: Validate Kyverno policies (dry-run)
+      - name: Validate directory structure
         run: |
-          kyverno apply k8s-policies/kyverno -r -x
+          if [ ! -d "k8s-policies/kyverno" ]; then
+            echo "ERROR: k8s-policies/kyverno directory not found"
+            echo "Current directory structure:"
+            ls -R
+            exit 1
+          fi
+
+      - name: Validate Kyverno policies
+        run: |
+          set -e
+          echo "Running Kyverno policy validation..."
+          
+          # Apply policies in dry-run mode
+          # -r: apply policies recursively
+          if kyverno apply k8s-policies/kyverno --resource k8s --policy k8s-policies/kyverno; then
+            echo "✅ All Kyverno policies passed validation"
+          else
+            echo "❌ Kyverno policy validation failed"
+            exit 1
+          fi
+
+      - name: Test Kyverno policies (only if we have a test directory, for future-proof )
+        run: |
+          if [ -d "k8s-policies/kyverno/test" ]; then
+            echo "Running Kyverno tests..."
+            kyverno test k8s-policies/kyverno
+          else
+            echo "No test directory found, skipping kyverno test command"
+          fi
+
+      - name: List Kyverno policies
+        run: |
+          echo "Kyverno policies found:"
+          find k8s-policies/kyverno -name "*.yaml" -o -name "*.yml"
