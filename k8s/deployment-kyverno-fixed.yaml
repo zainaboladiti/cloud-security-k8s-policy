@@ -1,5 +1,4 @@
 # web deployment
-
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -16,39 +15,40 @@ spec:
       labels:
         app: vuln-bank
     spec:
-      # Pod-level security enforcment
+     # Pod-level security enforcment
       securityContext:
-          runAsNonRoot: true         
-          runAsUser: 1000             # Explicit non-root UID
-          fsGroup: 1000               # For volume permissions
+        runAsNonRoot: true
+        runAsUser: 1000 # Explicit non-root UID
+        fsGroup: 1000 # For volume permissions
       containers:
-        - name: vuln-bank
-          image: vuln-bank:local  # If you loaded local image: use vulnbank:local
+      - name: vuln-bank
+        image: vuln-bank:local # If you loaded local image: use vulnbank:local
           # If using public image: use vulnbank/vulnbank:latest
-          
-          
-          # Container-level security enforcment
-          securityContext:
-            runAsNonRoot: true        
-            allowPrivilegeEscalation: false
-            capabilities:
-            drop:
-              - ALL
+        ports:
+        - containerPort: 3000
+        env:
+        - name: DB_NAME
+          value: vulnerable_bank
+        - name: DB_USER
+          value: postgres
+        - name: DB_PASSWORD
+          value: postgres
+        - name: DB_HOST
+          value: vuln-bank-db
+        - name: DB_PORT
+          value: "5432"
+         # Container-level security enforcment
+        securityContext:
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
-          ports:
-            - containerPort: 3000
-            
-          env:
-            - name: DB_NAME
-              value: "vulnerable_bank"
-            - name: DB_USER
-              value: "postgres"
-            - name: DB_PASSWORD
-              value: "postgres"
-            - name: DB_HOST
-              value: "vuln-bank-db"
-            - name: DB_PORT
-              value: "5432"
-
-
-          
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 250m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
