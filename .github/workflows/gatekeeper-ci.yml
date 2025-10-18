@@ -1,37 +1,45 @@
 name: Gatekeeper CI Policy Validation
 on:
   push:
+    branches:
+      - main
   pull_request:
+    branches:
+      - main
   workflow_dispatch:
-#   push:
-#     paths:
-#       - 'k8s-policies/gatekeeper/**'
-#       - 'k8s/**'
-#   pull_request:
-#     paths:
-#       - 'k8s-policies/gatekeeper/**'
-#       - 'k8s/**'
 
 jobs:
   gatekeeper-test:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Install Gator CLI
         run: |
           set -e
-          latest=$(curl -s https://api.github.com/repos/open-policy-agent/gatekeeper/releases/latest \
-            | jq -r '.assets[] | select(.name | test("gator_.*linux_amd64\\.tar\\.gz$")) | .browser_download_url' | head -n 1)
-          echo "Downloading Gator from: $latest"
-          if [ -z "$latest" ]; then
-            echo "ERROR: Could not find a matching Gator download URL"
+          
+          # Get the latest release info
+          latest_url=$(curl -s https://api.github.com/repos/open-policy-agent/gatekeeper/releases/latest \
+            | jq -r '.assets[] | select(.name | contains("gator") and contains("linux") and contains("amd64") and endswith(".tar.gz")) | .browser_download_url')
+          
+          echo "Downloading Gator from: $latest_url"
+          
+          if [ -z "$latest_url" ]; then
+            echo "ERROR: Could not find Gator download URL"
             exit 1
           fi
-
-          curl -L -o gator.tar.gz "$latest"
+          
+          # Download and extract
+          curl -L -o gator.tar.gz "$latest_url"
           tar -xzf gator.tar.gz
+          
+          # Move to bin and make executable
           sudo mv gator /usr/local/bin/
-          chmod +x /usr/local/bin/gator
+          sudo chmod +x /usr/local/bin/gator
+          
+          # Verify installation
           gator version
         # run: |
         #   latest=$(curl -s https://api.github.com/repos/open-policy-agent/gatekeeper/releases/latest \
@@ -45,7 +53,29 @@ jobs:
         #   chmod +x gator
         #   sudo mv gator /usr/local/bin/
 
+      - name: Validate directory structure
+        run: |
+          if [ ! -d "k8s-policies/gatekeeper" ]; then
+            echo "ERROR: k8s-policies/gatekeeper directory not found"
+            echo "Current directory structure:"
+            ls -R
+            exit 1
+          fi
+
       - name: Run Gator tests
         run: |
-          # run verification against Gatekeeper templates + constraints + sample resources
-          gator test k8s-policies/gatekeeper || (echo "Gatekeeper policy failures" && exit 1)
+          set -e
+          echo "Running Gatekeeper policy validation..."
+          
+          # Run gator test on the policies directory
+          if gator test k8s-policies/gatekeeper; then
+            echo "✅ All Gatekeeper policies passed validation"
+          else
+            echo "❌ Gatekeeper policy validation failed"
+            exit 1
+          fi
+
+      - name: Verify constraints and templates
+        run: |
+          echo "Checking for constraint templates..."
+          find k8s-policies/gatekeeper -name "*template*.yaml" -o -name "*constraint*.yaml"
