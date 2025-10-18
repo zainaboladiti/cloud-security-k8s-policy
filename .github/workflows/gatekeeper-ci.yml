@@ -61,9 +61,9 @@ jobs:
           
           # Run gator test on the policies directory (note the --filename flag)
           if gator test --filename=k8s-policies/gatekeeper; then
-            echo "✅ All Gatekeeper policies passed validation"
+            echo "All Gatekeeper policies passed validation"
           else
-            echo "❌ Gatekeeper policy validation failed"
+            echo "Gatekeeper policy validation failed"
             exit 1
           fi
 

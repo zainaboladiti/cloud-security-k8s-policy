@@ -40,17 +40,7 @@ jobs:
           sudo chmod +x /usr/local/bin/kyverno
           
           # Verify installation 
-      # run: |
-        #   latest=$(curl -s https://api.github.com/repos/kyverno/kyverno/releases/latest \
-        #     | jq -r '.assets[] | select(.name | test("kyverno-cli.*linux.*(amd64|x86_64)")) | .browser_download_url')
-        #   echo "Downloading Kyverno CLI from: $latest"
-        #   if [ -z "$latest" ]; then
-        #     echo "ERROR: Could not find a matching Kyverno CLI download URL"
-        #     exit 1
-        #   fi
-        #   curl -L -o kyverno "$latest"
-        #   chmod +x kyverno
-        #   sudo mv kyverno /usr/local/bin/
+            kyverno version
 
       - name: Validate directory structure
         run: |
@@ -60,8 +50,7 @@ jobs:
             ls -R
             exit 1
           fi
-
-      - name: Validate Kyverno policies
+    #   - name: Validate Kyverno policies
         # run: |
         #   set -e
         #   echo "Running Kyverno policy validation..."
@@ -69,32 +58,67 @@ jobs:
         #   # Apply policies in dry-run mode
         #   # -r: apply policies recursively
         #   if kyverno apply k8s-policies/kyverno --resource k8s --policy k8s-policies/kyverno; then
-        #     echo "✅ All Kyverno policies passed validation"
+        #     echo "All Kyverno policies passed validation"
         #   else
-        #     echo "❌ Kyverno policy validation failed"
+        #     echo "Kyverno policy validation failed"
         #     exit 1
         #   fi
 
+      - name: Test Compliant Resources
+        run: |
+            set -e
+            echo "Testing COMPLIANT resources..."
+            echo ""
+            
+            # Test the fixed deployment
+            echo "Testing: deployment-kyverno-fixed.yaml"
+            if kyverno apply k8s-policies/kyverno --resource k8s/deployment-kyverno-fixed.yaml; then
+                echo "Fixed deployment passed validation"
+            else
+                echo "Fixed deployment failed (should not happen!)"
+                exit 1
+            fi
+            
+            echo ""
+            echo "Testing: Other valid resources"
+            kyverno apply k8s-policies/kyverno \
+                --resource k8s/db.yaml \
+                --resource k8s/service.yaml
+            
+            echo ""
+            echo "All compliant resources passed policy validation"
+            
+      - name: Test Non-Compliant Resources (Expected to Fail)
         run: |
           set -e
-          echo "Running Kyverno policy validation on compliant manifests..."
+          echo ""
+          echo "Testing NON-COMPLIANT resources..."
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "These SHOULD fail - that proves policies work!"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
           
-          # Only test the valid manifests
-          kyverno apply k8s-policies/kyverno \
-            --resource k8s/db.yaml \
-            --resource k8s/deployment.yaml \
-            --resource k8s/service.yaml
-          
-          echo "✅ All compliant resources passed policy validation"
-
-      - name: Test Kyverno policies (only if we have a test directory, for future-proof )
-        run: |
-          if [ -d "k8s-policies/kyverno/test" ]; then
-            echo "Running Kyverno tests..."
-            kyverno test k8s-policies/kyverno
+          # Test the original non-compliant deployment
+          echo "Testing: deployment.yaml (original/non-compliant)"
+          if kyverno apply k8s-policies/kyverno --resource k8s/deployment.yaml; then
+            echo "WARNING: Non-compliant resource was NOT blocked!"
+            echo "Policies may not be working correctly."
+            exit 1
           else
-            echo "No test directory found, skipping kyverno test command"
+            echo "Non-compliant resource correctly blocked by policy"
           fi
+          
+          echo ""
+          echo "Policy enforcement verified successfully!"
+
+    #   - name: Test Kyverno policies (only if we have a test directory, for future-proof )
+    #     run: |
+    #       if [ -d "k8s-policies/kyverno/test" ]; then
+    #         echo "Running Kyverno tests..."
+    #         kyverno test k8s-policies/kyverno
+    #       else
+    #         echo "No test directory found, skipping kyverno test command"
+    #       fi
 
       - name: List Kyverno policies
         run: |
