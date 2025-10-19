@@ -2,6 +2,8 @@ apiVersion: templates.gatekeeper.sh/v1
 kind: ConstraintTemplate
 metadata:
   name: k8sdenyhostnetprivileged
+  annotations:
+    description: "Denies hostNetwork and privileged containers in Pods and Deployments"
 spec:
   crd:
     spec:
@@ -12,33 +14,41 @@ spec:
       rego: |
         package k8sdenyhostnetprivileged
 
+        # Get the spec based on resource type
+        get_spec(obj) = spec {
+          obj.kind == "Pod"
+          spec := obj.spec
+        }
+
+        get_spec(obj) = spec {
+          obj.kind != "Pod"
+          # For Deployment, StatefulSet, DaemonSet, etc.
+          spec := obj.spec.template.spec
+        }
+
+        # Violation: hostNetwork is enabled (Logic to deny hostNetwork)
         violation[{"msg": msg}] {
-          # Logic to deny hostNetwork
           obj := input.review.object
-          hostnet := obj.spec.hostNetwork == true
-          hostnet
-          msg := sprintf("hostNetwork is not allowed: hostNetwork=true for pod %v", [obj.metadata.name])
+          spec := get_spec(obj)
+          spec.hostNetwork == true
+          msg := sprintf("hostNetwork is not allowed for %v/%v", [obj.kind, obj.metadata.name])
         }
 
+        # Violation: privileged containers (Logic to deny priviledged containers)
         violation[{"msg": msg}] {
-          # Logic to deny privileged containers
           obj := input.review.object
-          has_privileged_container(obj)
-          msg := sprintf("privileged containers are not allowed in pod %v", [obj.metadata.name])
+          spec := get_spec(obj)
+          container := spec.containers[_]
+          container.securityContext.privileged == true
+          msg := sprintf("privileged container '%v' is not allowed in %v/%v", [container.name, obj.kind, obj.metadata.name])
         }
 
-        # Consolidated Helper Function
-        has_privileged_container(obj) {
-          # Check regular containers
-          some i
-          container := obj.spec.containers[i]
+        # Violation: privileged init containers
+        violation[{"msg": msg}] {
+          obj := input.review.object
+          spec := get_spec(obj)
+          container := spec.initContainers[_]
           container.securityContext.privileged == true
-        }
-
-        has_privileged_container(obj) {
-          # Check init containers
-          some j
-          container := obj.spec.initContainers[j]
-          container.securityContext.privileged == true
+          msg := sprintf("privileged init container '%v' is not allowed in %v/%v", [container.name, obj.kind, obj.metadata.name])
         }
 # check containers and initContainers for privileged:true in securityContext
