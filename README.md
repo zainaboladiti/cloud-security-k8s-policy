@@ -2,7 +2,7 @@
 
 This project involves using a deliberately vulnerable bank application, VULN-BANK by [Commando-X](https://github.com/Commando-X) and securing its Kubernetes deployment using Kyverno and Open Policy Agent (OPA) Gatekeeper as Policy-as-Code tools. The goal is to deploy the VULN-BANK application and enforce organisational and compliance-aligned security policies directly within the cluster to ensure all application containers run as non-root users and automatically inject memory and CPU limits if not defined and prevent applications from running in privileged mode due to compliance with regulatory frameworks (e.g., PCI DSS or ISO 27001). 
 
-## Two key policy use-cases implemented
+## Two Key Policy Use-cases Implemented
 -	Kyverno: Enforce that all containers run as non-root users and automatically inject CPU and memory limits if not defined.
 -	OPA Gatekeeper: Prevent Pods from using hostNetwork: true or running in privileged mode, protecting the host and meeting compliance standards like PCI DSS and ISO 27001.
   
