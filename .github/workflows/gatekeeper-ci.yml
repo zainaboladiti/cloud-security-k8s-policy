@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - main
+      - develop
   pull_request:
     branches:
       - main
+      - develop
   workflow_dispatch:
 
 jobs:
@@ -58,14 +60,11 @@ jobs:
           echo "Testing COMPLIANT manifests..."
           echo ""
           
-          # Test the good pod
           echo "Testing: good-hostnet-privileged.yaml"
-          if gator test \
-            --filename=k8s-policies/gatekeeper \
-            --filename=k8s/compliant/good-hostnet-privileged.yaml; then
-            echo "Good pod passed validation (as expected)"
+          if gator verify k8s-policies/gatekeeper/*.yaml k8s/compliant/good-hostnet-privileged.yaml; then
+            echo "✓ Good pod passed validation (as expected)"
           else
-            echo "Good pod failed validation (should not happen!)"
+            echo "✗ Good pod failed validation (should not happen!)"
             exit 1
           fi
           
@@ -82,30 +81,26 @@ jobs:
           echo "-------------------------------------------"
           echo ""
           
-          # Test bad-hostnet.yaml
+          # Test bad-hostnet.yaml (should fail)
           echo "Testing: bad-hostnet.yaml (hostNetwork violation)"
-          if gator test \
-            --filename=k8s-policies/gatekeeper \
-            --filename=k8s/bad-hostnet.yaml 2>&1 | grep -i "violation\|denied\|error"; then
-            echo "Non-compliant hostNetwork resource correctly blocked by policy"
-          else
-            echo "WARNING: Non-compliant hostNetwork resource was NOT blocked!"
+          if gator verify k8s-policies/gatekeeper/*.yaml k8s/bad-hostnet.yaml; then
+            echo "✗ WARNING: Non-compliant hostNetwork resource was NOT blocked!"
             echo "Policies may not be working correctly."
             exit 1
+          else
+            echo "✓ Non-compliant hostNetwork resource correctly blocked by policy"
           fi
           
           echo ""
           
-          # Test bad-privileged.yaml
+          # Test bad-privileged.yaml (should fail)
           echo "Testing: bad-privileged.yaml (privileged container violation)"
-          if gator test \
-            --filename=k8s-policies/gatekeeper \
-            --filename=k8s/bad-privileged.yaml 2>&1 | grep -i "violation\|denied\|error"; then
-            echo "Non-compliant privileged resource correctly blocked by policy"
-          else
-            echo "WARNING: Non-compliant privileged resource was NOT blocked!"
+          if gator verify k8s-policies/gatekeeper/*.yaml k8s/bad-privileged.yaml; then
+            echo "✗ WARNING: Non-compliant privileged resource was NOT blocked!"
             echo "Policies may not be working correctly."
             exit 1
+          else
+            echo "✓ Non-compliant privileged resource correctly blocked by policy"
           fi
           
           echo ""

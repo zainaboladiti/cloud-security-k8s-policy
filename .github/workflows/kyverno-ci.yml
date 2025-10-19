@@ -72,7 +72,7 @@ jobs:
             
             # Test the fixed deployment
             echo "Testing: deployment-kyverno-fixed.yaml"
-            if kyverno apply k8s-policies/kyverno --resource k8s/complaint/deployment-kyverno-fixed.yaml; then
+            if kyverno apply k8s-policies/kyverno --resource k8s/compliant/deployment-kyverno-fixed.yaml; then
                 echo "Fixed deployment passed validation"
             else
                 echo "Fixed deployment failed (should not happen!)"
@@ -82,7 +82,7 @@ jobs:
             echo ""
             echo "Testing: Other valid resources"
             kyverno apply k8s-policies/kyverno \
-                --resource k8s/complaint/db-kyverno-fixed.yaml \
+                --resource k8s/compliant/db-kyverno-fixed.yaml \
                 --resource k8s/service.yaml
             
             echo ""
