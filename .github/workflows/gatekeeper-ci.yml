@@ -4,11 +4,9 @@ on:
   push:
     branches:
       - main
-      - develop
   pull_request:
     branches:
       - main
-      - develop
   workflow_dispatch:
 
 jobs:
@@ -19,31 +17,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Gator CLI
+      - name: Install OPA CLI
         run: |
           set -e
-          
-          # Get the latest release info
-          latest_url=$(curl -s https://api.github.com/repos/open-policy-agent/gatekeeper/releases/latest \
-            | jq -r '.assets[] | select(.name | contains("gator") and contains("linux") and contains("amd64") and endswith(".tar.gz")) | .browser_download_url')
-          
-          echo "Downloading Gator from: $latest_url"
-          
-          if [ -z "$latest_url" ]; then
-            echo "ERROR: Could not find Gator download URL"
-            exit 1
-          fi
-          
-          # Download and extract
-          curl -L -o gator.tar.gz "$latest_url"
-          tar -xzf gator.tar.gz
-          
-          # Move to bin and make executable
-          sudo mv gator /usr/local/bin/
-          sudo chmod +x /usr/local/bin/gator
-          
-          # Verify installation
-          gator version
+          curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_linux_amd64_static
+          chmod +x opa
+          sudo mv opa /usr/local/bin/
+          opa version
 
       - name: Validate directory structure
         run: |
@@ -54,17 +34,56 @@ jobs:
             exit 1
           fi
 
+      - name: Extract and prepare Rego policy
+        run: |
+          set -e
+          echo "Extracting Rego policy from ConstraintTemplate..."
+          
+          # Find the template file (supports subdirectories)
+          TEMPLATE_FILE=$(find k8s-policies/gatekeeper -name "*template*.yaml" -o -name "*template*.yml" | head -n 1)
+          
+          if [ -z "$TEMPLATE_FILE" ]; then
+            echo "ERROR: No template file found"
+            exit 1
+          fi
+          
+          echo "Found template: $TEMPLATE_FILE"
+          
+          # Extract the rego code from the template (between 'rego: |' and the end)
+          sed -n '/rego: |/,$ p' "$TEMPLATE_FILE" | sed '1d' > policy.rego
+          
+          echo "✓ Rego policy extracted"
+          echo ""
+          echo "Policy content:"
+          cat policy.rego
+
       - name: Test Compliant Resources
         run: |
           set -e
+          echo ""
           echo "Testing COMPLIANT manifests..."
+          echo "================================"
           echo ""
           
           echo "Testing: good-hostnet-privileged.yaml"
-          if gator verify k8s-policies/gatekeeper/*.yaml k8s/compliant/good-hostnet-privileged.yaml; then
-            echo "✓ Good pod passed validation (as expected)"
+          
+          # Create input JSON for OPA
+          cat > input.json << 'EOF'
+          {
+            "review": {
+              "object": $(cat k8s/compliant/good-hostnet-privileged.yaml | yq eval -o=json '.')
+            }
+          }
+          EOF
+          
+          # Test with OPA - should return empty violations array
+          RESULT=$(opa eval -d policy.rego -i input.json 'data.k8sdenyhostnetprivileged.violation' --format pretty)
+          
+          if echo "$RESULT" | grep -q "\[\]"; then
+            echo "✓ Good pod passed validation (no violations)"
           else
-            echo "✗ Good pod failed validation (should not happen!)"
+            echo "✗ Good pod failed validation (found violations):"
+            echo "$RESULT"
             exit 1
           fi
           
@@ -76,42 +95,69 @@ jobs:
           set -e
           echo ""
           echo "Testing NON-COMPLIANT resources..."
-          echo "-------------------------------------------"
+          echo "==================================="
           echo "These SHOULD fail - that proves policies work!"
-          echo "-------------------------------------------"
+          echo "==================================="
           echo ""
           
-          # Test bad-hostnet.yaml (should fail)
+          # Test bad-hostnet.yaml
           echo "Testing: bad-hostnet.yaml (hostNetwork violation)"
-          if gator verify k8s-policies/gatekeeper/*.yaml k8s/bad-hostnet.yaml; then
+          
+          cat > input.json << 'EOF'
+          {
+            "review": {
+              "object": $(cat k8s/bad-hostnet.yaml | yq eval -o=json '.')
+            }
+          }
+          EOF
+          
+          RESULT=$(opa eval -d policy.rego -i input.json 'data.k8sdenyhostnetprivileged.violation' --format pretty)
+          
+          if echo "$RESULT" | grep -q "\[\]"; then
             echo "✗ WARNING: Non-compliant hostNetwork resource was NOT blocked!"
-            echo "Policies may not be working correctly."
             exit 1
           else
-            echo "✓ Non-compliant hostNetwork resource correctly blocked by policy"
+            echo "✓ Non-compliant hostNetwork resource correctly blocked"
+            echo "   Violation: $RESULT"
           fi
           
           echo ""
           
-          # Test bad-privileged.yaml (should fail)
+          # Test bad-privileged.yaml
           echo "Testing: bad-privileged.yaml (privileged container violation)"
-          if gator verify k8s-policies/gatekeeper/*.yaml k8s/bad-privileged.yaml; then
+          
+          cat > input.json << 'EOF'
+          {
+            "review": {
+              "object": $(cat k8s/bad-privileged.yaml | yq eval -o=json '.')
+            }
+          }
+          EOF
+          
+          RESULT=$(opa eval -d policy.rego -i input.json 'data.k8sdenyhostnetprivileged.violation' --format pretty)
+          
+          if echo "$RESULT" | grep -q "\[\]"; then
             echo "✗ WARNING: Non-compliant privileged resource was NOT blocked!"
-            echo "Policies may not be working correctly."
             exit 1
           else
-            echo "✓ Non-compliant privileged resource correctly blocked by policy"
+            echo "✓ Non-compliant privileged resource correctly blocked"
+            echo "   Violation: $RESULT"
           fi
           
           echo ""
-          echo "Policy enforcement verified successfully!"
+          echo "✅ Policy enforcement verified successfully!"
 
       - name: Verify constraints and templates
         run: |
-          echo "Checking for constraint templates..."
-          find k8s-policies/gatekeeper -name "*template*.yaml" -o -name "*constraint*.yaml"
+          echo "Checking for constraint templates and constraints..."
+          echo ""
+          echo "Templates found:"
+          find k8s-policies/gatekeeper -name "*template*.yaml" -o -name "*template*.yml"
+          echo ""
+          echo "Constraints found:"
+          find k8s-policies/gatekeeper -name "*constraint*.yaml" -o -name "*constraint*.yml" | grep -v template
           
           echo ""
           echo "Summary:"
-          echo "- ConstraintTemplates: $(find k8s-policies/gatekeeper -name "*template*.yaml" | wc -l)"
-          echo "- Constraints: $(find k8s-policies/gatekeeper -name "*constraint*.yaml" | wc -l)"
+          echo "- ConstraintTemplates: $(find k8s-policies/gatekeeper -name "*template*.yaml" -o -name "*template*.yml" | wc -l)"
+          echo "- Constraints: $(find k8s-policies/gatekeeper -name "*constraint*.yaml" -o -name "*constraint*.yml" | grep -v template | wc -l)"
