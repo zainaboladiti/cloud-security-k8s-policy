@@ -1,0 +1,23 @@
+# POD should be allowed
+apiVersion: v1
+kind: Pod
+metadata:
+  name: good-hostnet-privileged
+  labels:
+    test: compliant
+spec:
+  # No hostNetwork (defaults to false)
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+  containers:
+    - name: p
+      image: busybox
+      securityContext:
+        privileged: false
+        runAsNonRoot: true
+        runAsUser: 1000
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL

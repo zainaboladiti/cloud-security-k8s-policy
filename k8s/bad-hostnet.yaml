@@ -3,7 +3,7 @@ kind: Pod
 metadata:
   name: bad-hostnet
 spec:
-  hostNetwork: true
+  hostNetwork: true # hostNetwork violation
   containers:
     - name: busy
       image: busybox

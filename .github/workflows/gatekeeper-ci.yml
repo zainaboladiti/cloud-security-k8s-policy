@@ -4,11 +4,9 @@ on:
   push:
     branches:
       - main
-      - develop
   pull_request:
     branches:
       - main
-      - develop
   workflow_dispatch:
 
 jobs:
@@ -54,20 +52,71 @@ jobs:
             exit 1
           fi
 
-      - name: Run Gator tests
+      - name: Test Compliant Resources
         run: |
           set -e
-          echo "Running Gatekeeper policy validation..."
+          echo "Testing COMPLIANT manifests..."
+          echo ""
           
-          # Run gator test on the policies directory (note the --filename flag)
-          if gator test --filename=k8s-policies/gatekeeper; then
-            echo "All Gatekeeper policies passed validation"
+          # Test the good pod
+          echo "Testing: good-hostnet-privileged.yaml"
+          if gator test \
+            --filename=k8s-policies/gatekeeper \
+            --filename=k8s/compliant/good-hostnet-privileged.yaml; then
+            echo "Good pod passed validation (as expected)"
           else
-            echo "Gatekeeper policy validation failed"
+            echo "Good pod failed validation (should not happen!)"
             exit 1
           fi
+          
+          echo ""
+          echo "All compliant resources passed policy validation"
+
+      - name: Test Non-Compliant Resources (Expected to Fail)
+        run: |
+          set -e
+          echo ""
+          echo "Testing NON-COMPLIANT resources..."
+          echo "-------------------------------------------"
+          echo "These SHOULD fail - that proves policies work!"
+          echo "-------------------------------------------"
+          echo ""
+          
+          # Test bad-hostnet.yaml
+          echo "Testing: bad-hostnet.yaml (hostNetwork violation)"
+          if gator test \
+            --filename=k8s-policies/gatekeeper \
+            --filename=k8s/bad-hostnet.yaml 2>&1 | grep -i "violation\|denied\|error"; then
+            echo "Non-compliant hostNetwork resource correctly blocked by policy"
+          else
+            echo "WARNING: Non-compliant hostNetwork resource was NOT blocked!"
+            echo "Policies may not be working correctly."
+            exit 1
+          fi
+          
+          echo ""
+          
+          # Test bad-privileged.yaml
+          echo "Testing: bad-privileged.yaml (privileged container violation)"
+          if gator test \
+            --filename=k8s-policies/gatekeeper \
+            --filename=k8s/bad-privileged.yaml 2>&1 | grep -i "violation\|denied\|error"; then
+            echo "Non-compliant privileged resource correctly blocked by policy"
+          else
+            echo "WARNING: Non-compliant privileged resource was NOT blocked!"
+            echo "Policies may not be working correctly."
+            exit 1
+          fi
+          
+          echo ""
+          echo "Policy enforcement verified successfully!"
 
       - name: Verify constraints and templates
         run: |
           echo "Checking for constraint templates..."
           find k8s-policies/gatekeeper -name "*template*.yaml" -o -name "*constraint*.yaml"
+          
+          echo ""
+          echo "Summary:"
+          echo "- ConstraintTemplates: $(find k8s-policies/gatekeeper -name "*template*.yaml" | wc -l)"
+          echo "- Constraints: $(find k8s-policies/gatekeeper -name "*constraint*.yaml" | wc -l)"

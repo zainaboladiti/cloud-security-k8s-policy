@@ -8,4 +8,4 @@ spec:
       image: busybox
       command: ["sleep","3600"]
       securityContext:
-        privileged: true
+        privileged: true # Privileged container violation
