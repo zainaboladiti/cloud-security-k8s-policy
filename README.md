@@ -21,11 +21,11 @@ A detailed technical guide is posted here:
 
 👇 Part 1, Read the Guide
 
-(https://www./)
+(https://securitywithzee.com/posts/k8s-policy-part1/)
 
 👇 Part 2, Read the Guide
 
-(https://www./)
+(https://securitywithzee.com/posts/k8s-policy-part2/)
 
 ## License
 
